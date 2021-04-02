@@ -4,30 +4,20 @@
 mainTraverser* main_traverser = nullptr;
 
 bool
-checkFunctionIsMRCall(const clang::FunctionDecl* fd)
-{
-    std::string fd_name = fd->getNameAsString();
-    std::string::reverse_iterator r_it = fd_name.rbegin();
-    size_t delim_count = 0, expected_count = 2, char_count = 0;
-    while (delim_count < expected_count && r_it != fd_name.rend())
-    {
-        if (*r_it == globals::delimiter)
-        {
-            delim_count += 1;
-        }
-        r_it = std::next(r_it);
-        char_count += 1;
-    }
-    fd_name = fd_name.substr(0, fd_name.size() - char_count);
-    return globals::mr_names_list.count(fd_name);
-}
-
-bool
 checkNameIsVariant(std::string name_check)
 {
     std::string regex_string = globals::variant_prefix + globals::delimiter + "[0-9]*";
     std::regex variant_name_regex(regex_string, std::regex::grep);
     return (std::regex_match(name_check, variant_name_regex));
+}
+
+const clang::ast_type_traits::DynTypedNode
+mainTraverser::getBaseParent(const clang::DeclRefExpr* dre)
+{
+    clang::ASTContext::DynTypedNodeList dre_parents =
+        this->ctx.getParents(*dre);
+    assert(dre_parents.size() == 1);
+    return this->getBaseParent(dre_parents[0]);
 }
 
 const clang::ast_type_traits::DynTypedNode
@@ -82,19 +72,19 @@ mainTraverser::VisitCompoundStmt(clang::CompoundStmt* cs)
     return true;
 }
 
-bool
-mainTraverser::VisitCallExpr(clang::CallExpr* ce)
-{
-    if (clang::FunctionDecl* fd = ce->getDirectCallee())
-    {
-        if (checkFunctionIsMRCall(fd))
-        {
-            instantiatedMRVisitor imr_visit(fd);
-        }
-    }
-    clang::RecursiveASTVisitor<mainTraverser>::VisitCallExpr(ce);
-    return true;
-}
+//bool
+//mainTraverser::VisitCallExpr(clang::CallExpr* ce)
+//{
+    //if (clang::FunctionDecl* fd = ce->getDirectCallee())
+    //{
+        //if (checkFunctionIsMRCall(fd))
+        //{
+            //instantiatedMRVisitor imr_visit(fd);
+        //}
+    //}
+    //clang::RecursiveASTVisitor<mainTraverser>::VisitCallExpr(ce);
+    //return true;
+//}
 
 bool
 mainTraverser::VisitVarDecl(clang::VarDecl* vd)
@@ -102,27 +92,38 @@ mainTraverser::VisitVarDecl(clang::VarDecl* vd)
     std::string var_name = vd->getNameAsString();
     if (checkNameIsVariant(var_name))
     {
-        globals::variant_instrs.emplace(var_name, std::vector<const clang::SourceLocation&>());
-        this->curr_variant_name = var_name;
+        globals::variant_instrs.emplace(vd,
+            std::vector<std::pair<const clang::Stmt*, const clang::DeclRefExpr*>>());
+        this->curr_variant_vd = vd;
     }
     clang::RecursiveASTVisitor<mainTraverser>::VisitVarDecl(vd);
+    // TODO consider if curr_variant_vd should be reset
     return true;
 }
 
 bool
 mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
 {
-    if (const clang::VarDecl* vd = llvm::dyn_cast<clang::VarDecl>(dre->getDecl()))
+    if (clang::VarDecl* vd = llvm::dyn_cast<clang::VarDecl>(dre->getDecl()))
     {
-        std::string var_name = vd->getNameAsString();
-        if (checkNameIsVariant(var_name))
+        if (checkNameIsVariant(vd->getNameAsString()))
         {
-            clang::ASTContext::DynTypedNodeList vd_parents =
-                this->ctx.getParents(*vd);
-            assert(vd_parents.size() == 1);
-            globals::variant_instrs.at(var_name).emplace_back(
-                this->getBaseParent(vd_parents[0]).get<clang::Stmt>().getSourceRange());
-
+            globals::variant_instrs.at(vd).emplace_back(
+                std::make_pair(this->getBaseParent(dre).get<clang::Stmt>(), nullptr));
+        }
+    }
+    else if (clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(dre->getDecl()))
+    {
+        if (checkFunctionIsMRCall(fd))
+        {
+            instantiatedMRVisitor imr_visit(fd);
+            if (this->curr_variant_vd)
+            {
+                assert(globals::variant_instrs.at(curr_variant_vd).back().first ==
+                    this->getBaseParent(dre).get<clang::Stmt>());
+                assert(!globals::variant_instrs.at(curr_variant_vd).back().second);
+                globals::variant_instrs.at(curr_variant_vd).back().second = dre;
+            }
         }
     }
     clang::RecursiveASTVisitor<mainTraverser>::VisitDeclRefExpr(dre);

@@ -24,6 +24,7 @@ add_executable(mfReduce
     ${SRC_DIR}/opportunitiesGatherer.cpp
     ${SRC_DIR}/compileAndExecute.cpp
     ${SRC_DIR}/reductionStep.cpp
+    ${SRC_DIR}/helperFunctions.cpp
     )
 
 if (NOT LLVM_ENABLE_RTTI)

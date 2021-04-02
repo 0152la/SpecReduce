@@ -13,6 +13,8 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendAction.h"
 
+#include "clang/Rewrite/Core/Rewriter.h"
+
 bool checkFunctionIsMRCall(const clang::FunctionDecl*);
 bool checkNameIsVariant(std::string);
 
@@ -31,19 +33,21 @@ class mainTraverser : public clang::RecursiveASTVisitor<mainTraverser>
 {
     private:
         std::stack<const clang::FunctionDecl*> mr_fd_stack;
-        std::string curr_variant_name;
         clang::ASTContext& ctx;
         bool visited = false;
 
         const clang::CompoundStmt* main_child = nullptr;
+        const clang::VarDecl* curr_variant_vd = nullptr;
 
+        const clang::ast_type_traits::DynTypedNode getBaseParent(
+            const clang::DeclRefExpr*);
         const clang::ast_type_traits::DynTypedNode getBaseParent(
             const clang::ast_type_traits::DynTypedNode);
 
     public:
         mainTraverser(clang::ASTContext& _ctx) : ctx(_ctx) { };
 
-        bool VisitCallExpr(clang::CallExpr*);
+        //bool VisitCallExpr(clang::CallExpr*);
         bool VisitVarDecl(clang::VarDecl*);
         bool VisitDeclRefExpr(clang::DeclRefExpr*);
         bool VisitCompoundStmt(clang::CompoundStmt*);

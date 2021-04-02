@@ -40,21 +40,13 @@ static llvm::cl::opt<size_t> ReducerNoProgressPasses("passes",
 
 bool debug_info = true;
 std::string globals::test_error_message;
+std::string globals::output_file;
 int globals::test_error_code;
 std::set<std::string> globals::mr_names_list;
-std::map<const clang::FunctionDecl*, std::vector<const clang::DeclRefExpr*>> globals::instantiated_mrs;
-std::map<std::string, std::vector<const clang::Stmt*>> globals::variant_instrs;
+instantiated_mrs_t globals::instantiated_mrs;
+variant_instrs_t globals::variant_instrs;
 std::vector<reductionStep*> globals::opportunities;
 //std::map<REDUCTION_TYPE, std::vector<std::tuple>> reductions;
-
-void
-EMIT_DEBUG_INFO(const std::string& debug_message)
-{
-    if (debug_info)
-    {
-        std::cout << "DEBUG]  " << debug_message << std::endl;
-    }
-}
 
 //std::map<REDUCTION_TYPE, std::vector<std::tuple>>
 //selectReductions(const std::map<REDUCTION_TYPE, std::vector<std::tuple>>& opportunities)
@@ -69,6 +61,8 @@ main(int argc, char const **argv)
 
     const size_t max_pass_count = ReducerNoProgressPasses;
     size_t curr_pass_count = 0;
+
+    globals::output_file = TestOutput;
 
     //const std::string t_path =  "/home/sentenced/Documents/Internships/2018_ETH/work/spec_reduce/input/t_z3.cpp";
     //const std::string cm_path = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_ast/input/spec_repo/SMT_QF_NIA/z3/runtime";

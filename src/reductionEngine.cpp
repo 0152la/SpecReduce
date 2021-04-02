@@ -6,40 +6,30 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
 {
     opportunitiesGatherer og(ctx);
 
-    for (std::string s : globals::mr_names_list)
+    for (variant_instrs_elem_t p : globals::variant_instrs)
     {
-        std::cout << s << std::endl;
-    }
-
-    for (std::pair<std::string, std::vector<clang::SourceRange&>> p : globals::variant_instrs)
-    //for (std::pair<std::string, std::vector<const clang::Stmt*>> p : globals::variant_instrs)
-    {
-        if (p.first.find("_0") == std::string::npos)
+        std::string var_name = p.first->getNameAsString();
+        if (var_name.find("_0") != std::string::npos)
         {
             continue;
         }
-        globals::opportunities.push_back(new variantReducer(p.first, this->rw));
-        //std::cout << p.first << std::endl;
-        //std::cout << "--------------------" << std::endl;
-        //for (const clang::Stmt* s : p.second)
-        //{
-            ////s->dump();
-        //}
-        //std::cout << "====================" << std::endl;
+        EMIT_DEBUG_INFO("Adding variant eliminator for variant name " + var_name);
+        globals::opportunities.push_back(new variantReducer(p.first));
     }
 
-    //for (std::pair<const clang::FunctionDecl*, std::vector<const clang::DeclRefExpr*>> p :
-            //globals::instantiated_mrs)
-    //{
-        //std::cout << p.first->getNameAsString() << std::endl;
-        //std::cout << "--------------------" << std::endl;
-        //for (const clang::DeclRefExpr* dre : p.second)
-        //{
-            //std::cout <<dre->getDecl()->getNameAsString() << std::endl;
-        //}
-        //std::cout << "====================" << std::endl;
-    //}
-    //
+    for (std::pair<const clang::FunctionDecl*,
+            std::vector<const clang::DeclRefExpr*>> p :
+                globals::instantiated_mrs)
+    {
+        for (const clang::DeclRefExpr* dre : p.second)
+        {
+            EMIT_DEBUG_INFO("Adding recursion folder for call " +
+                dre->getDecl()->getNameAsString() + " in function " +
+                p.first->getNameAsString());
+            globals::opportunities.push_back(new recursionReducer(dre));
+        }
+    }
+
     for (reductionStep* rs : globals::opportunities)
     {
         rs->applyReduction(this->rw);
@@ -47,10 +37,21 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
     }
 }
 
+void
+reductionEngineAction::EndSourceFileAction()
+{
+    std::error_code ec;
+    int fd;
+    llvm::raw_fd_ostream of_rfo(globals::output_file, ec);
+    rw.getEditBuffer(rw.getSourceMgr().getMainFileID()).write(of_rfo);
+    of_rfo.close();
+    EMIT_DEBUG_INFO("Wrote output file " + globals::output_file);
+}
+
 std::unique_ptr<clang::ASTConsumer>
 reductionEngineAction::CreateASTConsumer(clang::CompilerInstance& ci,
     llvm::StringRef file)
 {
-    clang::Rewriter rw(ci.getSourceManager(), ci.getLangOpts());
+    rw.setSourceMgr(ci.getSourceManager(), ci.getLangOpts());
     return std::make_unique<reductionEngine>(rw);
 }

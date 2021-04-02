@@ -11,6 +11,7 @@
 
 #include <iostream>
 
+#include "helperFunctions.hpp"
 #include "globals.hpp"
 
 class reductionStep
@@ -18,28 +19,30 @@ class reductionStep
     protected:
         clang::SourceRange to_modify;
         std::string new_string;
+        std::vector<const clang::FunctionDecl*> cleanup_functions;
 
     public:
-        void applyReduction(clang::Rewriter&);
+        virtual void applyReduction(clang::Rewriter&);
+
+        const clang::FunctionDecl* addFunctionDREToClean(const clang::DeclRefExpr*);
 };
 
 class functionCleaner : public reductionStep
 {
     public:
-        functionCleaner(clang::FunctionDecl*);
+        functionCleaner(const clang::FunctionDecl*);
 };
 
 class variantReducer : public reductionStep
 {
     public:
-        variantReducer(std::string, clang::Rewriter&);
+        variantReducer(const clang::VarDecl*);
 };
 
-//class recursionReducer : public reductionStep
-//{
-    //public:
-        //recursionReducer(const clang::DeclRefExpr*);
-
-//};
+class recursionReducer : public reductionStep
+{
+    public:
+        recursionReducer(const clang::DeclRefExpr*);
+};
 
 #endif

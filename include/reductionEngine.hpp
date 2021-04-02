@@ -14,6 +14,8 @@
 #include "clang/Frontend/FrontendAction.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 
+#include "helperFunctions.hpp"
+
 #include "reductionStep.hpp"
 #include "opportunitiesGatherer.hpp"
 
@@ -30,8 +32,13 @@ class reductionEngine : public clang::ASTConsumer
 
 class reductionEngineAction : public clang::ASTFrontendAction
 {
+    private:
+        clang::Rewriter rw;
+
     public:
         reductionEngineAction() {};
+
+        void EndSourceFileAction() override;
 
         std::unique_ptr<clang::ASTConsumer>
             CreateASTConsumer(clang::CompilerInstance&, llvm::StringRef)
