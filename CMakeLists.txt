@@ -24,6 +24,8 @@ add_executable(mfReduce
     ${SRC_DIR}/opportunitiesGatherer.cpp
     ${SRC_DIR}/compileAndExecute.cpp
     ${SRC_DIR}/reductionStep.cpp
+    ${SRC_DIR}/reductionPass.cpp
+    ${SRC_DIR}/MRGatherer.cpp
     ${SRC_DIR}/helperFunctions.cpp
     )
 

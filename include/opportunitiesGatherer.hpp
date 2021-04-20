@@ -15,16 +15,20 @@
 
 #include "clang/Rewrite/Core/Rewriter.h"
 
-bool checkFunctionIsMRCall(const clang::FunctionDecl*);
+#include "MRGatherer.hpp"
+#include "globals.hpp"
+
+const mrInfo* checkFunctionIsMRCall(const clang::FunctionDecl*);
 bool checkNameIsVariant(std::string);
 
 class instantiatedMRVisitor : public clang::RecursiveASTVisitor<instantiatedMRVisitor>
 {
     private:
         clang::FunctionDecl* base_fd;
+        const mrInfo* fd_mri;
 
     public:
-        instantiatedMRVisitor(clang::FunctionDecl*);
+        instantiatedMRVisitor(clang::FunctionDecl*, const mrInfo*);
 
         bool VisitDeclRefExpr(clang::DeclRefExpr*);
 };
@@ -66,18 +70,10 @@ class mainTraverserCallback : public clang::ast_matchers::MatchFinder::MatchCall
             run(const clang::ast_matchers::MatchFinder::MatchResult&) override;
 };
 
-class MRLogger : public clang::ast_matchers::MatchFinder::MatchCallback
-{
-    public:
-        virtual void
-            run(const clang::ast_matchers::MatchFinder::MatchResult&) override;
-};
-
 class opportunitiesGatherer
 {
     private:
         clang::ast_matchers::MatchFinder mr_matcher;
-        MRLogger mr_logger;
         mainTraverserCallback main_traverser_cb;
 
     public:

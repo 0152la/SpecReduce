@@ -1,5 +1,4 @@
 #include "opportunitiesGatherer.hpp"
-#include "globals.hpp"
 
 mainTraverser* main_traverser = nullptr;
 
@@ -33,10 +32,11 @@ mainTraverser::getBaseParent(const clang::ast_type_traits::DynTypedNode dyn_node
     return this->getBaseParent(node_parents[0]);
 }
 
-instantiatedMRVisitor::instantiatedMRVisitor(clang::FunctionDecl* _fd) :
-    base_fd(_fd)
+instantiatedMRVisitor::instantiatedMRVisitor(clang::FunctionDecl* _fd, const mrInfo* _mri) :
+    base_fd(_fd), fd_mri(_mri)
 {
-    globals::instantiated_mrs.emplace(this->base_fd, std::vector<const clang::DeclRefExpr*>());
+    instantiated_mr_t imr(this->base_fd, this->fd_mri);
+    globals::instantiated_mrs.emplace(this->base_fd, imr);
     clang::RecursiveASTVisitor<instantiatedMRVisitor>::TraverseFunctionDecl(this->base_fd);
 }
 
@@ -45,10 +45,10 @@ instantiatedMRVisitor::VisitDeclRefExpr(clang::DeclRefExpr* dre)
 {
     if (clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(dre->getDecl()))
     {
-        if (checkFunctionIsMRCall(fd))
+        if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd))
         {
-            globals::instantiated_mrs.at(this->base_fd).push_back(dre);
-            instantiatedMRVisitor imr_visit(fd);
+            globals::instantiated_mrs.at(this->base_fd).recursive_calls.push_back(dre);
+            instantiatedMRVisitor imr_visit(fd, fd_mri);
         }
     }
     clang::RecursiveASTVisitor<instantiatedMRVisitor>::VisitDeclRefExpr(dre);
@@ -92,9 +92,14 @@ mainTraverser::VisitVarDecl(clang::VarDecl* vd)
     std::string var_name = vd->getNameAsString();
     if (checkNameIsVariant(var_name))
     {
-        globals::variant_instrs.emplace(vd,
-            std::vector<std::pair<const clang::Stmt*, const clang::DeclRefExpr*>>());
+        globals::variant_decls.emplace(vd, vd);
         this->curr_variant_vd = vd;
+        std::string first_variant_identifier = "_0";
+        if (var_name.find(first_variant_identifier) ==
+                var_name.size() - first_variant_identifier.size())
+        {
+            globals::variant_decls.at(vd).marked = true;
+        }
     }
     clang::RecursiveASTVisitor<mainTraverser>::VisitVarDecl(vd);
     // TODO consider if curr_variant_vd should be reset
@@ -108,21 +113,35 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
     {
         if (checkNameIsVariant(vd->getNameAsString()))
         {
-            globals::variant_instrs.at(vd).emplace_back(
-                std::make_pair(this->getBaseParent(dre).get<clang::Stmt>(), nullptr));
+            const clang::Stmt* var_instr_stmt = this->getBaseParent(dre).get<clang::Stmt>();
+            if (!globals::variant_instrs.count(var_instr_stmt))
+            {
+                variant_instruction_t var_instr(var_instr_stmt, vd);
+                globals::variant_instrs.emplace(var_instr_stmt, var_instr);
+                globals::variant_decls.at(vd).instrs.push_back(var_instr_stmt);
+            }
         }
     }
     else if (clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(dre->getDecl()))
     {
-        if (checkFunctionIsMRCall(fd))
+        if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd))
         {
-            instantiatedMRVisitor imr_visit(fd);
+            instantiatedMRVisitor imr_visit(fd, fd_mri);
             if (this->curr_variant_vd)
             {
-                assert(globals::variant_instrs.at(curr_variant_vd).back().first ==
-                    this->getBaseParent(dre).get<clang::Stmt>());
-                assert(!globals::variant_instrs.at(curr_variant_vd).back().second);
-                globals::variant_instrs.at(curr_variant_vd).back().second = dre;
+                assert(globals::variant_decls.count(this->curr_variant_vd));
+                const clang::Stmt* dre_base_stmt = this->getBaseParent(dre).get<clang::Stmt>();
+                if (globals::variant_instrs.count(dre_base_stmt))
+                {
+                    globals::variant_instrs.at(dre_base_stmt).mr_calls.push_back(dre);
+                    // TODO optionally check that the stmt is in the variant_decl_t object
+                }
+                else
+                {
+                    variant_instruction_t var_instr(dre_base_stmt, this->curr_variant_vd);
+                    globals::variant_instrs.emplace(dre_base_stmt, var_instr);
+                    globals::variant_decls.at(this->curr_variant_vd).instrs.push_back(dre_base_stmt);
+                }
             }
         }
     }
@@ -142,23 +161,8 @@ mainTraverserCallback::run(const clang::ast_matchers::MatchFinder::MatchResult& 
     main_traverser->setVisited();
 }
 
-void
-MRLogger::run(const clang::ast_matchers::MatchFinder::MatchResult& Result)
-{
-    const clang::FunctionDecl* fd =
-        Result.Nodes.getNodeAs<clang::FunctionDecl>("metaRel");
-    globals::mr_names_list.emplace(fd->getQualifiedNameAsString());
-}
-
 opportunitiesGatherer::opportunitiesGatherer(clang::ASTContext& ctx)
 {
-    mr_matcher.addMatcher(
-        clang::ast_matchers::functionDecl(
-        clang::ast_matchers::hasAncestor(
-        clang::ast_matchers::namespaceDecl(
-        clang::ast_matchers::hasName(
-        "metalib"))))
-            .bind("metaRel"), &mr_logger);
 
     mr_matcher.addMatcher(
         clang::ast_matchers::functionDecl(

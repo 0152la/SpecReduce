@@ -16,8 +16,10 @@
 
 #include "helperFunctions.hpp"
 
+#include "MRGatherer.hpp"
 #include "reductionStep.hpp"
 #include "opportunitiesGatherer.hpp"
+
 
 class reductionEngine : public clang::ASTConsumer
 {
@@ -25,6 +27,7 @@ class reductionEngine : public clang::ASTConsumer
         clang::Rewriter& rw;
 
     public:
+
         reductionEngine(clang::Rewriter& _rw) : rw(_rw) {};
 
         void HandleTranslationUnit(clang::ASTContext&) override;

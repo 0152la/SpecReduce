@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "globals.hpp"
+#include "MRGatherer.hpp"
 
 void EMIT_DEBUG_INFO(const std::string);
 

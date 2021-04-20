@@ -9,7 +9,7 @@ EMIT_DEBUG_INFO(const std::string debug_message)
     //}
 }
 
-bool
+const mrInfo*
 checkFunctionIsMRCall(const clang::FunctionDecl* fd)
 {
     std::string fd_name = fd->getNameAsString();
@@ -27,13 +27,18 @@ checkFunctionIsMRCall(const clang::FunctionDecl* fd)
     fd_name = fd_name.substr(0, fd_name.size() - char_count);
     if (!fd_name.empty())
     {
-        for (std::string mr_name : globals::mr_names_list)
+        for (const mrInfo* mr_info : globals::mr_names_list)
         {
+            //if (mr_info.family.compare("checks"))
+            //{
+                //continue;
+            //}
+            std::string mr_name = mr_info->name;
             if (mr_name.find(fd_name) == mr_name.size() - fd_name.size())
             {
-                return true;
+                mr_info;
             }
         }
     }
-    return false;
+    return nullptr;
 }

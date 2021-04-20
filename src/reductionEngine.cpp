@@ -1,39 +1,31 @@
 #include "reductionEngine.hpp"
 #include "globals.hpp"
 
+#include <iostream>
+
 void
 reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
 {
+    MRGatherer mrg(ctx);
     opportunitiesGatherer og(ctx);
 
-    for (variant_instrs_elem_t p : globals::variant_instrs)
-    {
-        std::string var_name = p.first->getNameAsString();
-        if (var_name.find("_0") != std::string::npos)
-        {
-            continue;
-        }
-        EMIT_DEBUG_INFO("Adding variant eliminator for variant name " + var_name);
-        globals::opportunities.push_back(new variantReducer(p.first));
-    }
+    //for (std::pair<const clang::VarDecl*, variant_decl_t> p : globals::variant_decls)
+    //{
+        //std::cout << "================================================================================" << std::endl;
+        //std::cout << p.first->getNameAsString() << std::endl;
+        //for (const clang::Stmt* s : p.second.instrs)
+        //{
+            //s->dump();
+        //}
+    //}
+    //assert(false);
 
-    for (std::pair<const clang::FunctionDecl*,
-            std::vector<const clang::DeclRefExpr*>> p :
-                globals::instantiated_mrs)
+    reductionStep rs(globals::variant_decls, globals::variant_instrs,
+        globals::instantiated_mrs);
+    for (reductionPass* rp : rs.opportunities)
     {
-        for (const clang::DeclRefExpr* dre : p.second)
-        {
-            EMIT_DEBUG_INFO("Adding recursion folder for call " +
-                dre->getDecl()->getNameAsString() + " in function " +
-                p.first->getNameAsString());
-            globals::opportunities.push_back(new recursionReducer(dre));
-        }
-    }
-
-    for (reductionStep* rs : globals::opportunities)
-    {
-        rs->applyReduction(this->rw);
-        delete(rs);
+        rp->applyReduction(rw);
+        delete rp;
     }
 }
 

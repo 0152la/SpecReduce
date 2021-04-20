@@ -42,17 +42,10 @@ bool debug_info = true;
 std::string globals::test_error_message;
 std::string globals::output_file;
 int globals::test_error_code;
-std::set<std::string> globals::mr_names_list;
-instantiated_mrs_t globals::instantiated_mrs;
-variant_instrs_t globals::variant_instrs;
-std::vector<reductionStep*> globals::opportunities;
-//std::map<REDUCTION_TYPE, std::vector<std::tuple>> reductions;
-
-//std::map<REDUCTION_TYPE, std::vector<std::tuple>>
-//selectReductions(const std::map<REDUCTION_TYPE, std::vector<std::tuple>>& opportunities)
-//{
-    //return opportunities;
-//}
+std::set<mrInfo*> globals::mr_names_list;
+instantiated_mrs_map_t globals::instantiated_mrs;
+variant_decls_map_t globals::variant_decls;
+variant_instrs_map_t globals::variant_instrs;
 
 int
 main(int argc, char const **argv)
@@ -114,7 +107,9 @@ main(int argc, char const **argv)
         //}
     }
     while(false);
-    //while (!opportunities.empty() && curr_pass_count < max_pass_count);
 
-
+    for (const mrInfo* mri : globals::mr_names_list)
+    {
+        delete(mri);
+    }
 }

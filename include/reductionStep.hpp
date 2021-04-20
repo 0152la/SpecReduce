@@ -13,36 +13,38 @@
 
 #include "helperFunctions.hpp"
 #include "globals.hpp"
+#include "reductionPass.hpp"
 
 class reductionStep
 {
-    protected:
-        clang::SourceRange to_modify;
-        std::string new_string;
-        std::vector<const clang::FunctionDecl*> cleanup_functions;
+    private:
+        variant_instrs_map_t variant_instrs;
+        variant_decls_map_t variant_decls;
+        instantiated_mrs_map_t instantiated_mrs;
+
+        size_t chunk_factor = 2;
+
+        template<typename T, typename U>
+        std::map<T, U> selectReductions(std::map<T, U>& reductions) {
+            return selectLeadReduction(reductions); }
+
+        template<typename T, typename U>
+        std::map<T, U> selectLeadReduction(std::map<T, U>& reductions) {
+            for (std::pair<T, U> reduction_pair : reductions)
+            {
+                if (!reduction_pair.second.marked)
+                {
+                    return std::map<T,U>({reduction_pair});
+                }
+            }
+            return std::map<T,U>();
+        }
 
     public:
-        virtual void applyReduction(clang::Rewriter&);
+        std::vector<reductionPass*> opportunities;
 
-        const clang::FunctionDecl* addFunctionDREToClean(const clang::DeclRefExpr*);
-};
-
-class functionCleaner : public reductionStep
-{
-    public:
-        functionCleaner(const clang::FunctionDecl*);
-};
-
-class variantReducer : public reductionStep
-{
-    public:
-        variantReducer(const clang::VarDecl*);
-};
-
-class recursionReducer : public reductionStep
-{
-    public:
-        recursionReducer(const clang::DeclRefExpr*);
+        reductionStep(variant_decls_map_t, variant_instrs_map_t,
+            instantiated_mrs_map_t);
 };
 
 #endif
