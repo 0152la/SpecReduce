@@ -39,13 +39,16 @@ static llvm::cl::opt<size_t> ReducerNoProgressPasses("passes",
     llvm::cl::init(10), llvm::cl::cat(reduceMetaTest));
 
 bool debug_info = true;
+bool globals::reduction_success = false;
 std::string globals::test_error_message;
 std::string globals::output_file;
+std::string globals::interestingness_test_path = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_reduce/input/simple_test.py";
 int globals::test_error_code;
 std::set<mrInfo*> globals::mr_names_list;
 instantiated_mrs_map_t globals::instantiated_mrs;
 variant_decls_map_t globals::variant_decls;
 variant_instrs_map_t globals::variant_instrs;
+variant_instr_index_map_t globals::variant_instr_index;
 
 int
 main(int argc, char const **argv)
@@ -70,43 +73,19 @@ main(int argc, char const **argv)
 
     assert(op.getSourcePathList().size() == 1);
     std::string input_file = op.getSourcePathList().front();
-    clang::tooling::ClangTool reduceTool(op.getCompilations(),
-        op.getSourcePathList());
 
+    size_t reduction_success = 0;
     do
     {
+        EMIT_DEBUG_INFO("Reduction success count " + std::to_string(reduction_success));
+        clang::tooling::ClangTool reduceTool(op.getCompilations(),
+            std::vector<std::string>({input_file}));
         reduceTool.run(clang::tooling::newFrontendActionFactory
                     <reductionEngineAction>().get());
-
-        //if (opportunities.empty())
-        //{
-            //break;
-        //}
-        //std::map<REDUCTION_TYPE, std::vector<std::tuple>> selected_reductions =
-            //selectReductions(opportunities);
-        //for (std::pair<REDUCTION_TYPE,
-                //std::unique_ptr<clang::tooling::FrontendActionFactory> r :
-                    //reduction_passes)
-        //{
-            //if (selected_reductions.count(r.first))
-            //{
-                //if (reduceTool.run(clang::tooling::NewFrontendActionFactory<reduceVariants>().get()))
-                //{
-                    //std::cout << "Error in reduction action VARIANT_ELIMINATION" << std::endl
-                    //exit(1);
-                //}
-            //}
-        //}
-        //if (!reductions.empty)
-        //{
-            //curr_pass_count = 0;
-        //}
-        //else
-        //{
-            //curr_pass_count += 1;
-        //}
+        input_file = globals::output_file;
+        reduction_success += 1;
     }
-    while(false);
+    while(globals::reduction_success);
 
     for (const mrInfo* mri : globals::mr_names_list)
     {

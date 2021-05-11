@@ -12,6 +12,7 @@ EMIT_DEBUG_INFO(const std::string debug_message)
 const mrInfo*
 checkFunctionIsMRCall(const clang::FunctionDecl* fd)
 {
+    //EMIT_DEBUG_INFO("Checking function " + fd->getNameAsString() + " is MR call.");
     std::string fd_name = fd->getNameAsString();
     std::string::reverse_iterator r_it = fd_name.rbegin();
     size_t delim_count = 0, expected_count = 2, char_count = 0;
@@ -29,14 +30,15 @@ checkFunctionIsMRCall(const clang::FunctionDecl* fd)
     {
         for (const mrInfo* mr_info : globals::mr_names_list)
         {
-            //if (mr_info.family.compare("checks"))
-            //{
-                //continue;
-            //}
-            std::string mr_name = mr_info->name;
-            if (mr_name.find(fd_name) == mr_name.size() - fd_name.size())
+            if (!mr_info->family.compare("checks"))
             {
-                mr_info;
+                continue;
+            }
+            std::string mr_name = mr_info->name;
+            if (mr_name.find(fd_name) != std::string::npos &&
+                    mr_name.find(fd_name) == mr_name.size() - fd_name.size())
+            {
+                return mr_info;
             }
         }
     }

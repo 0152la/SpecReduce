@@ -37,3 +37,14 @@ testExecutor::executeTestCase()
     assert(!errno);
     return return_code;
 }
+
+bool
+interestingExecutor::runInterestingnessTest()
+{
+    std::string interesting_execute_str =
+        this->interesting_script_path + " " + this->test_path;
+    std::FILE* execute_interest_test = popen(interesting_execute_str.c_str(), "r");
+    int return_code = pclose(execute_interest_test);
+    assert(!errno);
+    return return_code == 0;
+}

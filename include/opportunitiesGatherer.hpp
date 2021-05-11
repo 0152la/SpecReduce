@@ -24,11 +24,11 @@ bool checkNameIsVariant(std::string);
 class instantiatedMRVisitor : public clang::RecursiveASTVisitor<instantiatedMRVisitor>
 {
     private:
-        clang::FunctionDecl* base_fd;
+        const clang::DeclRefExpr* base_dre;
         const mrInfo* fd_mri;
 
     public:
-        instantiatedMRVisitor(clang::FunctionDecl*, const mrInfo*);
+        instantiatedMRVisitor(clang::DeclRefExpr*, const mrInfo*);
 
         bool VisitDeclRefExpr(clang::DeclRefExpr*);
 };
@@ -42,6 +42,7 @@ class mainTraverser : public clang::RecursiveASTVisitor<mainTraverser>
 
         const clang::CompoundStmt* main_child = nullptr;
         const clang::VarDecl* curr_variant_vd = nullptr;
+        size_t curr_vd_index = 0;
 
         const clang::ast_type_traits::DynTypedNode getBaseParent(
             const clang::DeclRefExpr*);

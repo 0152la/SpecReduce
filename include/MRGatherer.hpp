@@ -8,19 +8,23 @@
 #include <iostream>
 
 #include "globals.hpp"
+#include "helperFunctions.hpp"
 
 struct mrInfo
 {
+    std::string type;
     std::string name;
-    std::string family;
+    std::string family = "";
     bool is_base;
 
     mrInfo(std::string, bool);
 
-    std::string getFullName() const { return this->family + "::" + this->name; };
+    std::string getFullName() const;
+    mrInfo* getBaseMR(std::set<mrInfo*>&) const;
 
     bool operator<(const mrInfo& other) const {
         return this->getFullName() < other.getFullName(); }
+
 };
 
 class MRLogger : public clang::ast_matchers::MatchFinder::MatchCallback

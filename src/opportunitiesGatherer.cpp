@@ -32,12 +32,19 @@ mainTraverser::getBaseParent(const clang::ast_type_traits::DynTypedNode dyn_node
     return this->getBaseParent(node_parents[0]);
 }
 
-instantiatedMRVisitor::instantiatedMRVisitor(clang::FunctionDecl* _fd, const mrInfo* _mri) :
-    base_fd(_fd), fd_mri(_mri)
+instantiatedMRVisitor::instantiatedMRVisitor(clang::DeclRefExpr* _dre, const mrInfo* _mri) :
+    base_dre(_dre), fd_mri(_mri)
 {
-    instantiated_mr_t imr(this->base_fd, this->fd_mri);
-    globals::instantiated_mrs.emplace(this->base_fd, imr);
-    clang::RecursiveASTVisitor<instantiatedMRVisitor>::TraverseFunctionDecl(this->base_fd);
+    instantiated_mr_t* imr = new instantiated_mr_t(this->base_dre, this->fd_mri);
+    //this->base_dre->dump();
+    //std::cout << this->fd_mri->getFullName() << std::endl;
+    //std::cout << "============================================================" << std::endl;
+    globals::instantiated_mrs.emplace(this->base_dre, imr);
+    const clang::FunctionDecl* dre_fd =
+        llvm::dyn_cast<clang::FunctionDecl>(this->base_dre->getDecl());
+    assert(dre_fd);
+    clang::RecursiveASTVisitor<instantiatedMRVisitor>::TraverseFunctionDecl(
+        const_cast<clang::FunctionDecl*>(dre_fd));
 }
 
 bool
@@ -47,8 +54,8 @@ instantiatedMRVisitor::VisitDeclRefExpr(clang::DeclRefExpr* dre)
     {
         if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd))
         {
-            globals::instantiated_mrs.at(this->base_fd).recursive_calls.push_back(dre);
-            instantiatedMRVisitor imr_visit(fd, fd_mri);
+            globals::instantiated_mrs.at(this->base_dre)->recursive_calls.push_back(dre);
+            instantiatedMRVisitor imr_visit(dre, fd_mri);
         }
     }
     clang::RecursiveASTVisitor<instantiatedMRVisitor>::VisitDeclRefExpr(dre);
@@ -92,13 +99,15 @@ mainTraverser::VisitVarDecl(clang::VarDecl* vd)
     std::string var_name = vd->getNameAsString();
     if (checkNameIsVariant(var_name))
     {
-        globals::variant_decls.emplace(vd, vd);
+        variant_decl_t* vd_t = new variant_decl_t(vd);
+        globals::variant_decls.emplace(vd, vd_t);
         this->curr_variant_vd = vd;
+        this->curr_vd_index = 0;
         std::string first_variant_identifier = "_0";
         if (var_name.find(first_variant_identifier) ==
                 var_name.size() - first_variant_identifier.size())
         {
-            globals::variant_decls.at(vd).marked = true;
+            globals::variant_decls.at(vd)->marked = true;
         }
     }
     clang::RecursiveASTVisitor<mainTraverser>::VisitVarDecl(vd);
@@ -116,9 +125,17 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
             const clang::Stmt* var_instr_stmt = this->getBaseParent(dre).get<clang::Stmt>();
             if (!globals::variant_instrs.count(var_instr_stmt))
             {
-                variant_instruction_t var_instr(var_instr_stmt, vd);
+                variant_instruction_t* var_instr =
+                    new variant_instruction_t(var_instr_stmt, vd);
                 globals::variant_instrs.emplace(var_instr_stmt, var_instr);
-                globals::variant_decls.at(vd).instrs.push_back(var_instr_stmt);
+                globals::variant_decls.at(vd)->instrs.push_back(var_instr_stmt);
+                if (!globals::variant_instr_index.count(this->curr_vd_index))
+                {
+                    globals::variant_instr_index.emplace(
+                        this->curr_vd_index, std::vector<variant_instruction_t*>());
+                }
+                globals::variant_instr_index.at(this->curr_vd_index).push_back(var_instr);
+                this->curr_vd_index += 1;
             }
         }
     }
@@ -126,21 +143,33 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
     {
         if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd))
         {
-            instantiatedMRVisitor imr_visit(fd, fd_mri);
+            //dre->dump();
+            //std::cout << fd_mri->getFullName() << std::endl;
+            //std::cout << "============================================================" << std::endl;
+            instantiatedMRVisitor imr_visit(dre, fd_mri);
+
             if (this->curr_variant_vd)
             {
                 assert(globals::variant_decls.count(this->curr_variant_vd));
                 const clang::Stmt* dre_base_stmt = this->getBaseParent(dre).get<clang::Stmt>();
                 if (globals::variant_instrs.count(dre_base_stmt))
                 {
-                    globals::variant_instrs.at(dre_base_stmt).mr_calls.push_back(dre);
+                    globals::variant_instrs.at(dre_base_stmt)->mr_calls.push_back(dre);
                     // TODO optionally check that the stmt is in the variant_decl_t object
                 }
                 else
                 {
-                    variant_instruction_t var_instr(dre_base_stmt, this->curr_variant_vd);
+                    variant_instruction_t* var_instr =
+                        new variant_instruction_t(dre_base_stmt, this->curr_variant_vd);
                     globals::variant_instrs.emplace(dre_base_stmt, var_instr);
-                    globals::variant_decls.at(this->curr_variant_vd).instrs.push_back(dre_base_stmt);
+                    globals::variant_decls.at(this->curr_variant_vd)->instrs.push_back(dre_base_stmt);
+                    if (!globals::variant_instr_index.count(this->curr_vd_index))
+                    {
+                        globals::variant_instr_index.emplace(
+                            this->curr_vd_index, std::vector<variant_instruction_t*>());
+                    }
+                    globals::variant_instr_index.at(this->curr_vd_index).push_back(var_instr);
+                    this->curr_vd_index += 1;
                 }
             }
         }

@@ -1,78 +1,73 @@
 #include "reductionStep.hpp"
 
-reductionStep::reductionStep(variant_decls_map_t _vd_map, variant_instrs_map_t _vi_map,
-    instantiated_mrs_map_t _imrs_map) :
-        variant_decls(_vd_map), variant_instrs(_vi_map), instantiated_mrs(_imrs_map)
+reductionStep::reductionStep(reduction_datas_t _rds) :
+        variant_decls(_rds.variant_decls),
+        variant_instr_index(_rds.variant_instr_index),
+        variant_instrs(_rds.variant_instrs),
+        instantiated_mrs(_rds.instantiated_mrs)
 {
-    for (std::pair<const clang::VarDecl*, variant_decl_t> variant_data_pair :
-            this->selectReductions(this->variant_decls))
+    for (std::pair<const clang::VarDecl*, variant_decl_t*> variant_data_pair :
+            this->variant_decls)
     {
-        variant_decl_t variant_data = variant_data_pair.second;
-        std::string var_name = variant_data.variant_decl->getNameAsString();
+        variant_decl_t* variant_data = variant_data_pair.second;
+        std::string var_name = variant_data->variant_decl->getNameAsString();
         if (var_name.find("_0") != std::string::npos)
         {
             EMIT_DEBUG_INFO("Skipping variant id 0.");
             continue;
         }
-        assert(!variant_data.marked);
+        assert(!variant_data->marked);
         EMIT_DEBUG_INFO("Adding variant eliminator for variant name " + var_name);
         this->opportunities.push_back(
             new variantReducer(variant_data, this->variant_instrs, this->instantiated_mrs));
+    }
 
-        for (const clang::Stmt* var_stmt : variant_data.instrs)
+    for (std::pair<size_t, std::vector<variant_instruction_t*>> variant_instr_index_pair :
+            this->variant_instr_index)
+    {
+        if (variant_instr_index_pair.first == 0)
         {
-            assert(this->variant_instrs.count(var_stmt));
-            variant_instruction_t var_instr = this->variant_instrs.at(var_stmt);
-            var_instr.marked = true;
-            //for (const clang::DeclRefExpr* instr_dre : var_instr.mr_calls)
-            //{
-                //const clang::FunctionDecl* dre_fd =
-                    //llvm::dyn_cast<clang::FunctionDecl>(instr_dre->getDecl());
-                //assert(dre_fd);
-                //assert(this->instantiated_mrs.count(dre_fd));
-                //this->instantiated_mrs.at(dre_fd).marked = true;
-            //}
+            EMIT_DEBUG_INFO("Skipping sequence index 0.");
+            continue;
+        }
+        EMIT_DEBUG_INFO("Reducing function sequence at index " +
+            std::to_string(variant_instr_index_pair.first));
+        for (variant_instruction_t* var_instr : variant_instr_index_pair.second)
+        {
+            if (var_instr->marked)
+            {
+                EMIT_DEBUG_INFO("Skipping marked instruction index " +
+                    std::to_string(variant_instr_index_pair.first) +
+                    " for variant " +
+                    var_instr->assoc_variant->getNameAsString()+ ".");
+            }
+            else
+            {
+                EMIT_DEBUG_INFO("Reducing instruction index " +
+                    std::to_string(variant_instr_index_pair.first) +
+                    " for variant " +
+                    var_instr->assoc_variant->getNameAsString()+ ".");
+                this->opportunities.push_back(
+                    new instructionReducer(var_instr, this->instantiated_mrs));
+            }
         }
     }
 
-    instantiated_mrs_map_t recursive_instantiated_mrs;
-    std::for_each(this->instantiated_mrs.begin(), this->instantiated_mrs.end(),
-        [&recursive_instantiated_mrs]
-            (std::pair<const clang::FunctionDecl*, instantiated_mr_t> p)
-        {
-            if (!p.second.recursive_calls.empty())
-            {
-                recursive_instantiated_mrs.insert(p);
-            }
-        });
-
-    //for (std::pair<const clang::FunctionDecl*, instantiated_mr_t>
-            //mr_instance_pair : recursive_instantiated_mrs)
-    //{
-        //std::cout << "========================================" << std::endl;
-        //std::cout << mr_instance_pair.first->getNameAsString() << std::endl;
-        //std::cout << mr_instance_pair.second.marked << std::endl;
-    //}
-    //assert(false);
-
-    for (std::pair<const clang::FunctionDecl*, instantiated_mr_t>
-            mr_instance_pair : this->selectReductions(recursive_instantiated_mrs))
+    for (std::pair<const clang::DeclRefExpr*, instantiated_mr_t*>
+            mr_instance_pair : this->instantiated_mrs)
     {
-        instantiated_mr_t mr_instance_data = mr_instance_pair.second;
-        if (mr_instance_data.marked)
+        instantiated_mr_t* mr_instance_data = mr_instance_pair.second;
+        if (mr_instance_data->marked)
         {
             EMIT_DEBUG_INFO("Skipping recursion in marked function " +
-                mr_instance_data.mr_decl->getNameAsString());
+                mr_instance_data->mr_decl->getNameAsString());
             continue;
         }
-        EMIT_DEBUG_INFO("Performing recursion reduction function " +
-            mr_instance_data.mr_decl->getNameAsString());
-        for (const clang::DeclRefExpr* dre : mr_instance_data.recursive_calls)
-        {
-            EMIT_DEBUG_INFO("Adding recursion folder for call " +
-                dre->getDecl()->getNameAsString() + " in function " +
-                mr_instance_data.mr_decl->getNameAsString());
-            this->opportunities.push_back(new recursionReducer(dre, this->instantiated_mrs));
-        }
+        EMIT_DEBUG_INFO("Adding recursion folder for call " +
+            mr_instance_pair.first->getDecl()->getNameAsString() +
+            " in function " + mr_instance_data->mr_decl->getNameAsString());
+        this->opportunities.push_back(
+            new recursionReducer(
+                mr_instance_data->calling_dre, this->instantiated_mrs));
     }
 }

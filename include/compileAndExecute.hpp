@@ -24,4 +24,17 @@ class testExecutor
         int executeTestCase();
 };
 
+class interestingExecutor
+{
+    private:
+        const std::string test_path;
+        const std::string interesting_script_path;
+
+    public:
+        interestingExecutor(std::string _test_path, std::string _interest_path) :
+            test_path(_test_path), interesting_script_path(_interest_path) {};
+
+        bool runInterestingnessTest();
+};
+
 #endif
