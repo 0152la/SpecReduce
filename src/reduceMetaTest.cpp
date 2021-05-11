@@ -42,7 +42,7 @@ bool debug_info = true;
 bool globals::reduction_success = false;
 std::string globals::test_error_message;
 std::string globals::output_file;
-std::string globals::interestingness_test_path = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_reduce/input/simple_test.py";
+std::string globals::interestingness_test_path = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_reduce/scripts/interestingness.py"
 int globals::test_error_code;
 std::set<mrInfo*> globals::mr_names_list;
 instantiated_mrs_map_t globals::instantiated_mrs;

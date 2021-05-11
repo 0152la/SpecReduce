@@ -105,6 +105,62 @@ typedef std::map<size_t, std::vector<variant_instruction_t*>>
 typedef std::map<const clang::DeclRefExpr*, instantiated_mr_t*>
     instantiated_mrs_map_t;
 
+struct reduction_datas_t
+{
+    std::vector<const clang::VarDecl*> variant_decls;
+    std::vector<size_t> variant_instr_index;
+    std::vector<const clang::DeclRefExpr*> recursive_calls;
+
+    reduction_datas_t(const variant_decls_map_t& _vds,
+        const variant_instr_index_map_t& _viidx,
+        const instantiated_mrs_map_t& _imrs)
+    {
+        this->variant_decls = this->reduceMapKeysToVector(_vds);
+        this->variant_instr_index = this->reduceMapKeysToVector(_viidx);
+        this->recursive_calls = this->reduceMapKeysToVector(_imrs);
+    }
+
+    reduction_datas_t(std::vector<const clang::VarDecl*> _vds,
+        std::vector<size_t> _viidx, std::vector<const clang::DeclRefExpr*> _rcs):
+        variant_decls(_vds), variant_instr_index(_viidx), recursive_calls(_rcs) {};
+
+    size_t getReductionsSizeByType(REDUCTION_TYPE rd_type)
+    {
+        switch (rd_type)
+        {
+            case VARIANT_ELIMINATION:
+                return this->variant_decls.size();
+            case FAMILY_SHORTENING:
+                return this->variant_instr_index.size();
+            case RECURSION_REMOVAL:
+                return this->recursive_calls.size();
+            default:
+                assert(false);
+        }
+    }
+
+    bool
+    empty() const
+    {
+        return this->variant_decls.empty() &&
+            this->variant_instr_index.empty() &&
+            this->recursive_calls.empty();
+    }
+
+    private:
+        template<typename T, typename U>
+        std::vector<T>
+        reduceMapKeysToVector(const std::map<T,U> input_map)
+        {
+            std::vector<T> output_vec;
+            for (const std::pair<T, U> map_pair : input_map)
+            {
+                output_vec.push_back(map_pair.first);
+            }
+            return output_vec;
+        }
+};
+
 namespace globals
 {
 

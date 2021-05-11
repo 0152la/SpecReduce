@@ -1,15 +1,11 @@
 #include "reductionStep.hpp"
 
-reductionStep::reductionStep(reduction_datas_t _rds) :
-        variant_decls(_rds.variant_decls),
-        variant_instr_index(_rds.variant_instr_index),
-        variant_instrs(_rds.variant_instrs),
-        instantiated_mrs(_rds.instantiated_mrs)
+reductionStep::reductionStep(reduction_datas_t _rds)
 {
-    for (std::pair<const clang::VarDecl*, variant_decl_t*> variant_data_pair :
-            this->variant_decls)
+    std::vector<reduction_data_t*> processed_reductions;
+    for (const clang::VarDecl* rd_var : _rds.variant_decls)
     {
-        variant_decl_t* variant_data = variant_data_pair.second;
+        variant_decl_t* variant_data = globals::variant_decls.at(rd_var);
         std::string var_name = variant_data->variant_decl->getNameAsString();
         if (var_name.find("_0") != std::string::npos)
         {
@@ -18,45 +14,41 @@ reductionStep::reductionStep(reduction_datas_t _rds) :
         }
         assert(!variant_data->marked);
         EMIT_DEBUG_INFO("Adding variant eliminator for variant name " + var_name);
-        this->opportunities.push_back(
-            new variantReducer(variant_data, this->variant_instrs, this->instantiated_mrs));
+        this->opportunities.push_back(new variantReducer(variant_data, processed_reductions));
     }
 
-    for (std::pair<size_t, std::vector<variant_instruction_t*>> variant_instr_index_pair :
-            this->variant_instr_index)
+    for (size_t rd_idx : _rds.variant_instr_index)
     {
-        if (variant_instr_index_pair.first == 0)
+        if (rd_idx == 0)
         {
             EMIT_DEBUG_INFO("Skipping sequence index 0.");
             continue;
         }
         EMIT_DEBUG_INFO("Reducing function sequence at index " +
-            std::to_string(variant_instr_index_pair.first));
-        for (variant_instruction_t* var_instr : variant_instr_index_pair.second)
+            std::to_string(rd_idx));
+        for (variant_instruction_t* var_instr : globals::variant_instr_index.at(rd_idx))
         {
             if (var_instr->marked)
             {
                 EMIT_DEBUG_INFO("Skipping marked instruction index " +
-                    std::to_string(variant_instr_index_pair.first) +
-                    " for variant " +
+                    std::to_string(rd_idx) + " for variant " +
                     var_instr->assoc_variant->getNameAsString()+ ".");
             }
             else
             {
                 EMIT_DEBUG_INFO("Reducing instruction index " +
-                    std::to_string(variant_instr_index_pair.first) +
-                    " for variant " +
+                    std::to_string(rd_idx) + " for variant " +
                     var_instr->assoc_variant->getNameAsString()+ ".");
                 this->opportunities.push_back(
-                    new instructionReducer(var_instr, this->instantiated_mrs));
+                    new instructionReducer(var_instr, processed_reductions));
             }
         }
     }
 
-    for (std::pair<const clang::DeclRefExpr*, instantiated_mr_t*>
-            mr_instance_pair : this->instantiated_mrs)
+    for (const clang::DeclRefExpr* rd_rec_call : _rds.recursive_calls)
     {
-        instantiated_mr_t* mr_instance_data = mr_instance_pair.second;
+        instantiated_mr_t* mr_instance_data =
+            globals::instantiated_mrs.at(rd_rec_call);
         if (mr_instance_data->marked)
         {
             EMIT_DEBUG_INFO("Skipping recursion in marked function " +
@@ -64,10 +56,15 @@ reductionStep::reductionStep(reduction_datas_t _rds) :
             continue;
         }
         EMIT_DEBUG_INFO("Adding recursion folder for call " +
-            mr_instance_pair.first->getDecl()->getNameAsString() +
+            rd_rec_call->getDecl()->getNameAsString() +
             " in function " + mr_instance_data->mr_decl->getNameAsString());
         this->opportunities.push_back(
             new recursionReducer(
-                mr_instance_data->calling_dre, this->instantiated_mrs));
+                mr_instance_data->calling_dre, processed_reductions));
+    }
+
+    for (reduction_data_t* rd : processed_reductions)
+    {
+        rd->marked = false;
     }
 }

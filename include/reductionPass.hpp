@@ -25,7 +25,7 @@ class reductionPass
         virtual void applyReduction(clang::Rewriter&);
 
         void addFunctionDREToClean(
-            const clang::DeclRefExpr*, instantiated_mrs_map_t&);
+            const clang::DeclRefExpr*, std::vector<reduction_data_t*>&);
 };
 
 class functionCleaner : public reductionPass
@@ -37,21 +37,19 @@ class functionCleaner : public reductionPass
 class variantReducer : public reductionPass
 {
     public:
-        variantReducer(variant_decl_t*, variant_instrs_map_t&,
-            instantiated_mrs_map_t&);
+        variantReducer(variant_decl_t*, std::vector<reduction_data_t*>&);
 };
 
 class instructionReducer : public reductionPass
 {
     public:
-        instructionReducer(variant_instruction_t*,
-            instantiated_mrs_map_t&);
+        instructionReducer(variant_instruction_t*, std::vector<reduction_data_t*>&);
 };
 
 class recursionReducer : public reductionPass
 {
     public:
-        recursionReducer(const clang::DeclRefExpr*, instantiated_mrs_map_t&);
+        recursionReducer(const clang::DeclRefExpr*, std::vector<reduction_data_t*>&);
 };
 
 #endif
