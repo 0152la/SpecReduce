@@ -21,13 +21,18 @@
 #include "reductionStep.hpp"
 #include "opportunitiesGatherer.hpp"
 
+#define CHUNK_SIZE_DEF_VALUE -1
+#define CHUNK_SIZE_REDUCE_FACTOR 2
+#define CHUNK_SIZE_INITIAL_FACTOR 2
+
 class reductionEngine : public clang::ASTConsumer
 {
     private:
         clang::Rewriter& rw;
-        size_t chunk_size = -1, offset = 0;
-        const size_t max_reduction_attempts = 3;
+        size_t chunk_size = CHUNK_SIZE_DEF_VALUE, offset = 0;
         REDUCTION_TYPE rd_type = VARIANT_ELIMINATION;
+
+        const size_t max_reduction_attempts = 3;
 
         reduction_datas_t selectReductions(const reduction_datas_t& rds) {
             return selectSequentialChunkReductions(rds); }
@@ -50,6 +55,17 @@ class reductionEngine : public clang::ASTConsumer
         }
 
         void cleanup();
+
+        template <typename T, typename U>
+        void
+        cleanMap(std::map<T, U*>& to_clean)
+        {
+            for (std::pair<T, U*> to_clean_elem : to_clean)
+            {
+                delete to_clean_elem.second;
+            }
+            to_clean.clear();
+        }
 
     public:
 

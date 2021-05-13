@@ -32,7 +32,7 @@ reductionPass::addFunctionDREToClean(const clang::DeclRefExpr* dre,
     std::vector<reduction_data_t*>& processed_reductions)
     //instantiated_mrs_map_t& instantiated_mrs)
 {
-    EMIT_DEBUG_INFO("Adding cleanup function " + dre->getNameInfo().getAsString());
+    EMIT_DEBUG_INFO("Adding cleanup function " + dre->getNameInfo().getAsString(), 4);
     assert(globals::instantiated_mrs.count(dre));
     instantiated_mr_t* imr = globals::instantiated_mrs.at(dre);
     this->cleanup_functions.push_back(imr->mr_decl);
@@ -55,7 +55,7 @@ reductionPass::addFunctionDREToClean(const clang::DeclRefExpr* dre,
 
 functionCleaner::functionCleaner(const clang::FunctionDecl* fd)
 {
-    EMIT_DEBUG_INFO("Cleaning orphaned function " + fd->getNameAsString());
+    EMIT_DEBUG_INFO("Cleaning orphaned function " + fd->getNameAsString(), 4);
     this->to_modify = fd->getSourceRange();
     this->new_string = "";
 }
@@ -125,7 +125,7 @@ recursionReducer::recursionReducer(const clang::DeclRefExpr* dre,
     //instantiated_mrs_map_t& instantiated_mrs)
 {
     assert(globals::instantiated_mrs.count(dre));
-    EMIT_DEBUG_INFO("Folding recursion call " + dre->getNameInfo().getAsString());
+    EMIT_DEBUG_INFO("Folding recursion call " + dre->getNameInfo().getAsString(), 4);
     this->addFunctionDREToClean(dre, processed_reductions);
     this->to_modify = dre->getSourceRange();
 

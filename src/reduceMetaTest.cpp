@@ -1,7 +1,9 @@
+#include <chrono>
 #include <set>
 #include <map>
 #include <iostream>
 #include <vector>
+#include <thread>
 #include <tuple>
 
 #include "clang/AST/Expr.h"
@@ -37,13 +39,16 @@ static llvm::cl::alias TestOutputAlias("o",
 static llvm::cl::opt<size_t> ReducerNoProgressPasses("passes",
     llvm::cl::desc("Number of passes without progress until reduction gives up"),
     llvm::cl::init(10), llvm::cl::cat(reduceMetaTest));
+static llvm::cl::opt<size_t> DebugLevel("debug",
+    llvm::cl::desc("Verbosity of debug messages"),
+    llvm::cl::init(2), llvm::cl::cat(reduceMetaTest));
 
-bool debug_info = true;
+size_t globals::debug_level;
+size_t globals::reductions_count = 0;
 bool globals::reduction_success = false;
-std::string globals::test_error_message;
+int globals::expected_return_code;
 std::string globals::output_file;
-std::string globals::interestingness_test_path = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_reduce/scripts/interestingness.py"
-int globals::test_error_code;
+std::string globals::interestingness_test_path = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_reduce/scripts/interestingness.py";
 std::set<mrInfo*> globals::mr_names_list;
 instantiated_mrs_map_t globals::instantiated_mrs;
 variant_decls_map_t globals::variant_decls;
@@ -59,33 +64,35 @@ main(int argc, char const **argv)
     size_t curr_pass_count = 0;
 
     globals::output_file = TestOutput;
-
-    //const std::string t_path =  "/home/sentenced/Documents/Internships/2018_ETH/work/spec_reduce/input/t_z3.cpp";
-    //const std::string cm_path = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_ast/input/spec_repo/SMT_QF_NIA/z3/runtime";
-    //testExecutor te(t_path, cm_path);
-    //te.compileTestCase();
-    //globals::test_error_code = te.executeTestCase();
-    //if (globals::test_error_code == 0)
-    //{
-        //std::cout << "No initial error detected in provided test case; quitting..." << std::endl;
-        //exit(0);
-    //}
+    globals::debug_level = DebugLevel;
 
     assert(op.getSourcePathList().size() == 1);
     std::string input_file = op.getSourcePathList().front();
 
-    size_t reduction_success = 0;
+    /* Sanity check */
+    interestingExecutor int_exec(input_file, globals::interestingness_test_path);
+    if (int_exec.runInterestingnessTest())
+    {
+        std::cout << "Sanity check return exit code " << int_exec.getReturnCode() << std::endl;
+        return 1;
+    }
+    globals::expected_return_code = int_exec.getReturnCode();
+    EMIT_DEBUG_INFO("Set expected return code " +
+        std::to_string(globals::expected_return_code) , 1);
+
     do
     {
-        EMIT_DEBUG_INFO("Reduction success count " + std::to_string(reduction_success));
+        assert(llvm::sys::fs::exists(input_file));
+        EMIT_DEBUG_INFO("Reduction success count " +
+            std::to_string(globals::reductions_count), 1);
         clang::tooling::ClangTool reduceTool(op.getCompilations(),
             std::vector<std::string>({input_file}));
         reduceTool.run(clang::tooling::newFrontendActionFactory
                     <reductionEngineAction>().get());
         input_file = globals::output_file;
-        reduction_success += 1;
+        globals::reductions_count += 1;
     }
-    while(globals::reduction_success);
+    while (globals::reduction_success); // && globals::reductions_count < 3);
 
     for (const mrInfo* mri : globals::mr_names_list)
     {

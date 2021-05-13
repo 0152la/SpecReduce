@@ -4,9 +4,6 @@
 #include "globals.hpp"
 #include "compileAndExecute.hpp"
 
-#define CHUNK_SIZE_DEF_VALUE -1
-#define CHUNK_SIZE_REDUCE_FACTOR 2
-#define CHUNK_SIZE_INITIAL_FACTOR 2
 
 void
 reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
@@ -20,8 +17,8 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
     size_t reduction_attempt = 0;
     bool success = false;
     llvm::SmallString<256> tmp_path;
-    while (!success && this->rd_type <= REDUCTION_TYPE::RECURSION_REMOVAL &&
-            reduction_attempt <= this->max_reduction_attempts)
+
+    while (!success && this->rd_type <= REDUCTION_TYPE::RECURSION_REMOVAL)
     {
         if (this->chunk_size == CHUNK_SIZE_DEF_VALUE)
         {
@@ -32,85 +29,94 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
         EMIT_DEBUG_INFO("Reduction loop count " + std::to_string(reduction_attempt) +
             " [TYPE IDX " + std::to_string(this->rd_type) +
             "] [CHUNK SIZE " + std::to_string(this->chunk_size) +
-            "] [OFFSET " + std::to_string(this->offset) + "]\r");
+            "] [OFFSET " + std::to_string(this->offset) + "]", 2);
 
         reduction_datas_t step_reductions =
             this->selectReductions(global_reductions);
 
+        // Do not reduce variant 0
+        step_reductions.variant_decls.erase(
+            std::remove_if(std::begin(step_reductions.variant_decls),
+                std::end(step_reductions.variant_decls),
+                [](const clang::VarDecl* vd) {
+                    return vd->getNameAsString().find("_0")
+                        != std::string::npos; }),
+            step_reductions.variant_decls.end());
+
+        // Do not reduce sequence index 0
+        step_reductions.variant_instr_index.erase(
+            std::remove_if(std::begin(step_reductions.variant_instr_index),
+                std::end(step_reductions.variant_instr_index),
+                [](size_t idx) { return idx == 0; }),
+            step_reductions.variant_instr_index.end());
+
         if (!step_reductions.empty())
         {
             reductionStep rs(step_reductions);
+            clang::Rewriter rw_tmp(rw.getSourceMgr(), rw.getLangOpts());
             EMIT_DEBUG_INFO("Applying " + std::to_string(rs.opportunities.size()) +
-                " selected reductions.");
+                " selected reductions.", 3);
             for (reductionPass* rp : rs.opportunities)
             {
-                rp->applyReduction(rw);
+                rp->applyReduction(rw_tmp);
                 delete rp;
             }
 
             int tmp_fd;
-            llvm::sys::fs::createTemporaryFile("mtFuzz", ".cpp", tmp_fd, tmp_path);
+            std::string tmp_file_name = "mfReduce-" +
+                std::to_string(globals::reductions_count) + "-" +
+                std::to_string(reduction_attempt) + "-%%%%.cpp";
+            ERROR_CHECK(llvm::sys::fs::createUniqueFile(tmp_file_name, tmp_fd, tmp_path));
             llvm::raw_fd_ostream temp_rfo(tmp_fd, true);
-            rw.getEditBuffer(rw.getSourceMgr().getMainFileID()).write(temp_rfo);
+            rw_tmp.getEditBuffer(rw_tmp.getSourceMgr().getMainFileID()).write(temp_rfo);
             temp_rfo.close();
-            EMIT_DEBUG_INFO(("Wrote tmp output file " + tmp_path.str()).str());
+            EMIT_DEBUG_INFO(("Wrote tmp output file " + tmp_path).str(), 3);
 
             interestingExecutor int_exec(tmp_path.str(), globals::interestingness_test_path);
-            success = int_exec.runInterestingnessTest();
-        }
+            success = int_exec.runInterestingnessTest(globals::expected_return_code);
+            EMIT_DEBUG_INFO("Retrieved return code " + int_exec.getReturnCode(), 2);
 
-        if (success)
-        {
-            EMIT_DEBUG_INFO("Wrote output file " + globals::output_file);
-            globals::reduction_success = true;
-            llvm::sys::fs::rename(tmp_path, globals::output_file);
-            this->cleanup();
-            return;
-        }
-        else
-        {
-            llvm::sys::fs::remove(tmp_path);
-            if (this->offset >= global_reductions.getReductionsSizeByType(this->rd_type))
+            if (success)
             {
-                if (this->chunk_size == 1)
-                {
-                    this->rd_type = static_cast<REDUCTION_TYPE>(
-                        static_cast<int>(this->rd_type) + 1);
-                    this->chunk_size = CHUNK_SIZE_DEF_VALUE;
-                    this->offset = 0;
-                }
-                else
-                {
-                    this->chunk_size /= CHUNK_SIZE_REDUCE_FACTOR;
-                    this->offset = 0;
-                }
+                //ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
+                ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
+                EMIT_DEBUG_INFO("Wrote output file " + globals::output_file, 2);
+                globals::reduction_success = true;
+                this->cleanup();
+                return;
             }
-            reduction_attempt += 1;
+            else
+            {
+                ERROR_CHECK(llvm::sys::fs::remove(tmp_path));
+            }
         }
+        if (this->offset >= global_reductions.getReductionsSizeByType(this->rd_type))
+        {
+            if (this->chunk_size == 1)
+            {
+                this->rd_type = static_cast<REDUCTION_TYPE>(
+                    static_cast<int>(this->rd_type) + 1);
+                this->chunk_size = CHUNK_SIZE_DEF_VALUE;
+                this->offset = 0;
+            }
+            else
+            {
+                this->chunk_size /= CHUNK_SIZE_REDUCE_FACTOR;
+                this->offset = 0;
+            }
+        }
+        reduction_attempt += 1;
     }
-    globals::reduction_success = false;
+    //globals::reduction_success = false;
 }
 
 void
 reductionEngine::cleanup()
 {
-    for (std::pair<const clang::VarDecl*, variant_decl_t*> variant_p :
-            globals::variant_decls)
-    {
-        delete variant_p.second;
-    }
-
-    for (std::pair<const clang::Stmt*, variant_instruction_t*> instr_p :
-            globals::variant_instrs)
-    {
-        delete instr_p.second;
-    }
-
-    for (std::pair<const clang::DeclRefExpr*, instantiated_mr_t*> mr_p :
-            globals::instantiated_mrs)
-    {
-        delete mr_p.second;
-    }
+    this->cleanMap(globals::variant_decls);
+    globals::variant_instr_index.clear();
+    this->cleanMap(globals::variant_instrs);
+    this->cleanMap(globals::instantiated_mrs);
 }
 
 reduction_datas_t

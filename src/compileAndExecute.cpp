@@ -39,12 +39,13 @@ testExecutor::executeTestCase()
 }
 
 bool
-interestingExecutor::runInterestingnessTest()
+interestingExecutor::runInterestingnessTest(const int expected)
 {
     std::string interesting_execute_str =
-        this->interesting_script_path + " " + this->test_path;
+        this->interesting_script_path + " --logging none " + this->test_path;
+    std::cout << interesting_execute_str << std::endl;
     std::FILE* execute_interest_test = popen(interesting_execute_str.c_str(), "r");
-    int return_code = pclose(execute_interest_test);
+    this->return_code = WEXITSTATUS(pclose(execute_interest_test));
     assert(!errno);
-    return return_code == 0;
+    return this->return_code == expected;
 }

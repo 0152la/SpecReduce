@@ -161,7 +161,9 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
                 {
                     variant_instruction_t* var_instr =
                         new variant_instruction_t(dre_base_stmt, this->curr_variant_vd);
+                    var_instr->mr_calls.push_back(dre);
                     globals::variant_instrs.emplace(dre_base_stmt, var_instr);
+
                     globals::variant_decls.at(this->curr_variant_vd)->instrs.push_back(dre_base_stmt);
                     if (!globals::variant_instr_index.count(this->curr_vd_index))
                     {

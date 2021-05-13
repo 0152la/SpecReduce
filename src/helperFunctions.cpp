@@ -1,18 +1,37 @@
 #include "helperFunctions.hpp"
 
 void
-EMIT_DEBUG_INFO(const std::string debug_message)
+EMIT_DEBUG_INFO(const std::string debug_message, size_t priority)
 {
-    //if (debug_info)
-    //{
-        std::cout << "DEBUG]  " << debug_message << std::endl;
-    //}
+    if (priority <= globals::debug_level)
+    {
+        if (priority == 1)
+        {
+            std::cout << "\033[1m\033[31m" << "DEBUG] " << "\033[m";
+        }
+        else
+        {
+            std::cout << "DEBUG] ";
+        }
+        std::cout << debug_message << std::endl;
+    }
+}
+
+void
+ERROR_CHECK(std::error_code ec)
+{
+    if (ec)
+    {
+        std::cout << std::flush << ec << std::endl;
+        std::cout << ec.message() << std::endl;
+        exit(1);
+    }
 }
 
 const mrInfo*
 checkFunctionIsMRCall(const clang::FunctionDecl* fd)
 {
-    //EMIT_DEBUG_INFO("Checking function " + fd->getNameAsString() + " is MR call.");
+    EMIT_DEBUG_INFO("Checking function " + fd->getNameAsString() + " is MR call.", 4);
     std::string fd_name = fd->getNameAsString();
     std::string::reverse_iterator r_it = fd_name.rbegin();
     size_t delim_count = 0, expected_count = 2, char_count = 0;

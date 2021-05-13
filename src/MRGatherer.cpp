@@ -57,7 +57,7 @@ mrInfo::getBaseMR(std::set<mrInfo*>& mr_set) const
             return logged_mr;
         }
     }
-    EMIT_DEBUG_INFO("No base function for MR family " + this->family + " found.");
+    EMIT_DEBUG_INFO("No base function for MR family " + this->family + " found.", 1);
     assert(false);
 }
 
@@ -70,7 +70,7 @@ MRLogger::run(const clang::ast_matchers::MatchFinder::MatchResult& Result)
         Result.Nodes.getNodeAs<clang::CallExpr>("recursiveCall");
     mrInfo* new_mri = new mrInfo(fd->getQualifiedNameAsString(), ce == nullptr);
     EMIT_DEBUG_INFO("Adding new MR " + fd->getQualifiedNameAsString() +
-        " (base " + std::to_string(new_mri->is_base) + ")");
+        " (base " + std::to_string(new_mri->is_base) + ")", 4);
     globals::mr_names_list.insert(new_mri);
 }
 

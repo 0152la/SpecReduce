@@ -29,12 +29,14 @@ class interestingExecutor
     private:
         const std::string test_path;
         const std::string interesting_script_path;
+        int return_code;
 
     public:
         interestingExecutor(std::string _test_path, std::string _interest_path) :
             test_path(_test_path), interesting_script_path(_interest_path) {};
 
-        bool runInterestingnessTest();
+        bool runInterestingnessTest(const int = 0);
+        int getReturnCode() { return this->return_code; };
 };
 
 #endif

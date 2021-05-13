@@ -4,6 +4,7 @@ import logging
 import os
 import subprocess
 import shlex
+import signal
 import sys
 
 ###############################################################################
@@ -16,6 +17,9 @@ parser.add_argument("input", type=str,
     help = "Path to test file to be checked.")
 parser.add_argument("--run-timeout", type=int, default=120,
     help = "Maximum time, in seconds, to allow execution of generated test cases.")
+parser.add_argument("--logging", type=str, choices=['none', 'debug', 'info'],
+    default='info',
+    help = "Level of data to be logged.")
 
 ###############################################################################
 # Helper functions
@@ -34,6 +38,7 @@ def exec_cmd(name, cmd, timeout=None, log_test=False):
     except subprocess.TimeoutExpired:
         cmd_proc.kill()
         out, err = cmd_proc.communicate()
+    log_console.debug(f"Return code: {cmd_proc.returncode}")
     return cmd_proc.returncode
 
 def make_abs_path(pth, log, check_exists = False):
@@ -52,11 +57,17 @@ def make_abs_path(pth, log, check_exists = False):
 # Main function
 ###############################################################################
 
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
 args = parser.parse_args()
 
 log_console = logging.getLogger('console')
-log_console.addHandler(logging.StreamHandler(sys.stdout))
-log_console.setLevel(logging.DEBUG)
+if not args.logging == 'none':
+    log_console.addHandler(logging.StreamHandler(sys.stdout))
+if args.logging == 'debug':
+    log_console.setLevel(logging.DEBUG)
+elif args.logging == 'info':
+    log_console.setLevel(logging.INFO)
 
 input_path = make_abs_path(args.input, log_console, True)
 compile_script = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_ast/scripts/compile.sh"
@@ -70,5 +81,5 @@ if not os.path.exists(f"{input_exec}"):
     print(f"Could not find given executable {input_exec}.")
     sys.exit(-1)
 run_result = exec_cmd("execute", run_cmd, timeout=args.run_timeout)
-print(run_result)
-sys.exit(run_result != 0)
+os.remove(input_exec)
+sys.exit(run_result)

@@ -6,6 +6,7 @@
 #include "globals.hpp"
 #include "MRGatherer.hpp"
 
-void EMIT_DEBUG_INFO(const std::string);
+void EMIT_DEBUG_INFO(const std::string, size_t);
+void ERROR_CHECK(std::error_code);
 
 #endif

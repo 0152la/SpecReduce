@@ -73,7 +73,6 @@ struct variant_instruction_t : reduction_data_t
     const clang::Stmt* instr;
     const clang::VarDecl* assoc_variant;
     std::vector<const clang::DeclRefExpr*> mr_calls;
-    bool marked = false;
 
     variant_instruction_t(const clang::Stmt* _s, const clang::VarDecl* _vd) :
         instr(_s), assoc_variant(_vd) {};
@@ -91,7 +90,6 @@ struct variant_decl_t : reduction_data_t
 {
     const clang::VarDecl* variant_decl;
     std::vector<const clang::Stmt*> instrs;
-    bool marked = false;
 
     variant_decl_t(const clang::VarDecl* _vd) : variant_decl(_vd) {};
 };
@@ -170,7 +168,9 @@ const char delimiter = '_';
 extern std::string output_file;
 extern std::string test_error_message;
 extern std::string interestingness_test_path;
-extern int test_error_code;
+extern int expected_return_code;
+extern size_t debug_level;
+extern size_t reductions_count;
 extern bool reduction_success;
 
 extern instantiated_mrs_map_t instantiated_mrs;
