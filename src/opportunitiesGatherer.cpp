@@ -103,12 +103,6 @@ mainTraverser::VisitVarDecl(clang::VarDecl* vd)
         globals::variant_decls.emplace(vd, vd_t);
         this->curr_variant_vd = vd;
         this->curr_vd_index = 0;
-        std::string first_variant_identifier = "_0";
-        if (var_name.find(first_variant_identifier) ==
-                var_name.size() - first_variant_identifier.size())
-        {
-            globals::variant_decls.at(vd)->marked = true;
-        }
     }
     clang::RecursiveASTVisitor<mainTraverser>::VisitVarDecl(vd);
     // TODO consider if curr_variant_vd should be reset

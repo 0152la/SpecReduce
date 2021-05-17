@@ -14,6 +14,32 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
     reduction_datas_t global_reductions(globals::variant_decls,
         globals::variant_instr_index, globals::instantiated_mrs);
 
+    for (const clang::VarDecl* vd : global_reductions.variant_decls)
+    {
+        //vd->dump();
+    }
+
+    // Do not reduce variant 0
+    global_reductions.variant_decls.erase(
+        std::remove_if(std::begin(global_reductions.variant_decls),
+            std::end(global_reductions.variant_decls),
+            [](const clang::VarDecl* vd) {
+                return vd->getNameAsString().find("_0")
+                    != std::string::npos; }),
+        global_reductions.variant_decls.end());
+
+    for (const clang::VarDecl* vd : global_reductions.variant_decls)
+    {
+        //vd->dump();
+    }
+
+    // Do not reduce sequence index 0
+    global_reductions.variant_instr_index.erase(
+        std::remove_if(std::begin(global_reductions.variant_instr_index),
+            std::end(global_reductions.variant_instr_index),
+            [](size_t idx) { return idx == 0; }),
+        global_reductions.variant_instr_index.end());
+
     size_t reduction_attempt = 0;
     bool success = false;
     llvm::SmallString<256> tmp_path;
@@ -22,40 +48,31 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
     {
         if (this->chunk_size == CHUNK_SIZE_DEF_VALUE)
         {
-            this->chunk_size =
-                global_reductions.getReductionsSizeByType(this->rd_type) / CHUNK_SIZE_INITIAL_FACTOR;
+            size_t reductions_size =
+                global_reductions.getReductionsSizeByType(this->rd_type);
+            if (reductions_size <= 1)
+            {
+                this->chunk_size = reductions_size;
+            }
+            else
+            {
+                this->chunk_size = reductions_size / CHUNK_SIZE_INITIAL_FACTOR;
+            }
         }
+
+        reduction_datas_t step_reductions = this->selectReductions(global_reductions);
 
         EMIT_DEBUG_INFO("Reduction loop count " + std::to_string(reduction_attempt) +
             " [TYPE IDX " + std::to_string(this->rd_type) +
             "] [CHUNK SIZE " + std::to_string(this->chunk_size) +
             "] [OFFSET " + std::to_string(this->offset) + "]", 2);
 
-        reduction_datas_t step_reductions =
-            this->selectReductions(global_reductions);
-
-        // Do not reduce variant 0
-        step_reductions.variant_decls.erase(
-            std::remove_if(std::begin(step_reductions.variant_decls),
-                std::end(step_reductions.variant_decls),
-                [](const clang::VarDecl* vd) {
-                    return vd->getNameAsString().find("_0")
-                        != std::string::npos; }),
-            step_reductions.variant_decls.end());
-
-        // Do not reduce sequence index 0
-        step_reductions.variant_instr_index.erase(
-            std::remove_if(std::begin(step_reductions.variant_instr_index),
-                std::end(step_reductions.variant_instr_index),
-                [](size_t idx) { return idx == 0; }),
-            step_reductions.variant_instr_index.end());
-
         if (!step_reductions.empty())
         {
             reductionStep rs(step_reductions);
             clang::Rewriter rw_tmp(rw.getSourceMgr(), rw.getLangOpts());
             EMIT_DEBUG_INFO("Applying " + std::to_string(rs.opportunities.size()) +
-                " selected reductions.", 3);
+                " selected reductions.", 2);
             for (reductionPass* rp : rs.opportunities)
             {
                 rp->applyReduction(rw_tmp);
@@ -74,12 +91,13 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
 
             interestingExecutor int_exec(tmp_path.str(), globals::interestingness_test_path);
             success = int_exec.runInterestingnessTest(globals::expected_return_code);
-            EMIT_DEBUG_INFO("Retrieved return code " + int_exec.getReturnCode(), 2);
+            EMIT_DEBUG_INFO("Retrieved return code " +
+                std::to_string(int_exec.getReturnCode()), 2);
 
             if (success)
             {
-                //ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
-                ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
+                ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
+                //ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
                 EMIT_DEBUG_INFO("Wrote output file " + globals::output_file, 2);
                 globals::reduction_success = true;
                 this->cleanup();
@@ -90,9 +108,10 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
                 ERROR_CHECK(llvm::sys::fs::remove(tmp_path));
             }
         }
-        if (this->offset >= global_reductions.getReductionsSizeByType(this->rd_type))
+        if (this->offset >= global_reductions.getReductionsSizeByType(this->rd_type)
+                || this->chunk_size == 0)
         {
-            if (this->chunk_size == 1)
+            if (this->chunk_size <= 1)
             {
                 this->rd_type = static_cast<REDUCTION_TYPE>(
                     static_cast<int>(this->rd_type) + 1);
@@ -107,7 +126,6 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
         }
         reduction_attempt += 1;
     }
-    //globals::reduction_success = false;
 }
 
 void

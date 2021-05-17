@@ -109,9 +109,9 @@ struct reduction_datas_t
     std::vector<size_t> variant_instr_index;
     std::vector<const clang::DeclRefExpr*> recursive_calls;
 
-    reduction_datas_t(const variant_decls_map_t& _vds,
-        const variant_instr_index_map_t& _viidx,
-        const instantiated_mrs_map_t& _imrs)
+    reduction_datas_t(const variant_decls_map_t _vds,
+        const variant_instr_index_map_t _viidx,
+        const instantiated_mrs_map_t _imrs)
     {
         this->variant_decls = this->reduceMapKeysToVector(_vds);
         this->variant_instr_index = this->reduceMapKeysToVector(_viidx);

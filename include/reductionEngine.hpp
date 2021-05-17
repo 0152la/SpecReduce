@@ -29,7 +29,8 @@ class reductionEngine : public clang::ASTConsumer
 {
     private:
         clang::Rewriter& rw;
-        size_t chunk_size = CHUNK_SIZE_DEF_VALUE, offset = 0;
+        size_t chunk_size = CHUNK_SIZE_DEF_VALUE;
+        size_t offset = 0;
         REDUCTION_TYPE rd_type = VARIANT_ELIMINATION;
 
         const size_t max_reduction_attempts = 3;
@@ -41,6 +42,10 @@ class reductionEngine : public clang::ASTConsumer
         template<typename T>
         std::vector<T> selectChunks(const std::vector<T>& reductions)
         {
+            if (reductions.empty())
+            {
+                return std::vector<T>();
+            }
             assert(this->offset < reductions.size());
             typename std::vector<T>::const_iterator red_begin = reductions.cbegin();
             typename std::vector<T>::const_iterator select_start_it =

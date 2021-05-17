@@ -82,6 +82,7 @@ main(int argc, char const **argv)
 
     do
     {
+        globals::reduction_success = false;
         assert(llvm::sys::fs::exists(input_file));
         EMIT_DEBUG_INFO("Reduction success count " +
             std::to_string(globals::reductions_count), 1);
