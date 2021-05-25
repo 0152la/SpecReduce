@@ -22,18 +22,7 @@ jobs:
     - uses: actions/checkout@v2
     
     - name: Install Clang
-      # You may pin to the exact commit or the version.
-      # uses: egor-tensin/setup-clang@d16e36d5f8a7eb00aa6627c1a536d94dfc4a913d
-      uses: egor-tensin/setup-clang@v1
-      with:
-        # Target platform
-        platform: x64
-        # Install Cygwin packages
-        cygwin: 0
-        # Set up cc/c++ executables
-        cc: 0
-        # On Cygwin, replace executable symlinks with hardlinks
-        hardlinks: 0
+      run: sudo apt install llvm clang clang-dev
         
     - name: Configure CMake
       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
