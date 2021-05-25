@@ -1,7 +1,6 @@
 #ifndef _GLOBALS_HPP
 #define _GLOBALS_HPP
 
-
 #include "clang/AST/Decl.h"
 #include "clang/AST/Expr.h"
 
@@ -9,6 +8,8 @@
 #include <set>
 #include <string>
 #include <vector>
+
+#include "fuzzingReduction.hpp"
 
 struct mrInfo;
 
@@ -94,6 +95,37 @@ struct variant_decl_t : reduction_data_t
     variant_decl_t(const clang::VarDecl* _vd) : variant_decl(_vd) {};
 };
 
+/**
+ * Handler for fuzzing regions
+ *
+ * \param identifier { The final variable name that is fuzzed by this region }
+ * \param instrs { The list of instructions within the region, in reverse order }
+ */
+
+struct fuzzing_region_t : reduction_data_t
+{
+    const std::string identifier = "";
+    //fuzzingTree* fuzzing_tree;
+    std::vector<const clang::Stmt*> instrs;
+    std::map<std::string, std::string> param_names;
+
+    //fuzzing_region_t(std::vector<const clang::Stmt*> _instrs,
+        //clang::ASTContext& ctx) {
+            //this->fuzzing_tree = new fuzzingTree(_instrs, ctx); };
+    //
+    fuzzing_region_t(std::string _iden, std::vector<const clang::Stmt*> _instrs,
+        std::map<std::string, std::string> _params, clang::ASTContext& ctx) :
+            identifier(_iden), instrs(_instrs), param_names(_params) {};
+};
+
+struct reduce_fn_data
+{
+    const clang::FunctionDecl* reduce_fn;
+    std::vector<std::string> reduce_fn_arg_types;
+
+    reduce_fn_data(const clang::FunctionDecl*);
+};
+
 typedef std::map<const clang::VarDecl*, variant_decl_t*>
     variant_decls_map_t;
 typedef std::map<const clang::Stmt*, variant_instruction_t*>
@@ -102,58 +134,54 @@ typedef std::map<size_t, std::vector<variant_instruction_t*>>
     variant_instr_index_map_t;
 typedef std::map<const clang::DeclRefExpr*, instantiated_mr_t*>
     instantiated_mrs_map_t;
+typedef std::map<std::string, fuzzing_region_t*>
+    fuzzing_regions_map_t;
 
 struct reduction_datas_t
 {
     std::vector<const clang::VarDecl*> variant_decls;
     std::vector<size_t> variant_instr_index;
     std::vector<const clang::DeclRefExpr*> recursive_calls;
+    std::vector<std::pair<std::string, const clang::Stmt*>> fuzzed_instrs;
 
-    reduction_datas_t(const variant_decls_map_t _vds,
-        const variant_instr_index_map_t _viidx,
-        const instantiated_mrs_map_t _imrs)
-    {
-        this->variant_decls = this->reduceMapKeysToVector(_vds);
-        this->variant_instr_index = this->reduceMapKeysToVector(_viidx);
-        this->recursive_calls = this->reduceMapKeysToVector(_imrs);
-    }
+    reduction_datas_t(const variant_decls_map_t,
+        const variant_instr_index_map_t, const instantiated_mrs_map_t,
+        const fuzzing_regions_map_t);
 
     reduction_datas_t(std::vector<const clang::VarDecl*> _vds,
-        std::vector<size_t> _viidx, std::vector<const clang::DeclRefExpr*> _rcs):
-        variant_decls(_vds), variant_instr_index(_viidx), recursive_calls(_rcs) {};
+        std::vector<size_t> _viidx, std::vector<const clang::DeclRefExpr*> _rcs,
+        std::vector<std::pair<std::string, const clang::Stmt*>> _fr):
+        variant_decls(_vds), variant_instr_index(_viidx), recursive_calls(_rcs),
+        fuzzed_instrs(_fr) {};
 
-    size_t getReductionsSizeByType(REDUCTION_TYPE rd_type)
-    {
-        switch (rd_type)
-        {
-            case VARIANT_ELIMINATION:
-                return this->variant_decls.size();
-            case FAMILY_SHORTENING:
-                return this->variant_instr_index.size();
-            case RECURSION_REMOVAL:
-                return this->recursive_calls.size();
-            default:
-                assert(false);
-        }
-    }
-
-    bool
-    empty() const
-    {
-        return this->variant_decls.empty() &&
-            this->variant_instr_index.empty() &&
-            this->recursive_calls.empty();
-    }
+    size_t getReductionsSizeByType(REDUCTION_TYPE) const;
+    bool empty() const;
 
     private:
+        std::vector<std::pair<std::string, const clang::Stmt*>>
+        reduceFuzzingRegionsToInstr(
+            const std::map<std::string, fuzzing_region_t*>);
+
         template<typename T, typename U>
         std::vector<T>
-        reduceMapKeysToVector(const std::map<T,U> input_map)
+        reduceMapKeysToVector(const std::map<T,U>& input_map)
         {
             std::vector<T> output_vec;
             for (const std::pair<T, U> map_pair : input_map)
             {
                 output_vec.push_back(map_pair.first);
+            }
+            return output_vec;
+        }
+
+        template<typename T, typename U>
+        std::vector<T>
+        reduceMapValuesToVector(const std::map<T,U>& input_map)
+        {
+            std::vector<U> output_vec;
+            for (const std::pair<T, U> map_pair : input_map)
+            {
+                output_vec.push_back(map_pair.second);
             }
             return output_vec;
         }
@@ -177,7 +205,11 @@ extern instantiated_mrs_map_t instantiated_mrs;
 extern variant_decls_map_t variant_decls;
 extern variant_instrs_map_t variant_instrs;
 extern variant_instr_index_map_t variant_instr_index;
+extern fuzzing_regions_map_t fuzzing_regions;
+
 extern std::set<mrInfo*> mr_names_list;
+extern std::map<std::string, reduce_fn_data*> reduce_fn_list;
+extern std::set<std::string> reduce_fn_param_types;
 
 } // namespace globals
 

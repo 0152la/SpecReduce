@@ -7,9 +7,10 @@
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Rewrite/Core/Rewriter.h"
 
-#include <vector>
-
+#include <numeric>
 #include <iostream>
+#include <sstream>
+#include <vector>
 
 #include "helperFunctions.hpp"
 #include "globals.hpp"
@@ -51,5 +52,13 @@ class recursionReducer : public reductionPass
     public:
         recursionReducer(const clang::DeclRefExpr*, std::vector<reduction_data_t*>&);
 };
+
+class fuzzingInstrReducer : public reductionPass
+{
+    public:
+        fuzzingInstrReducer(std::pair<std::string, const clang::Stmt*>,
+            std::vector<reduction_data_t*>&);
+};
+
 
 #endif

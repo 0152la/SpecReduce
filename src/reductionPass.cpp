@@ -99,7 +99,6 @@ variantReducer::variantReducer(variant_decl_t* variant_data,
 
 instructionReducer::instructionReducer(variant_instruction_t* instr,
     std::vector<reduction_data_t*>& processed_reductions)
-    //instantiated_mrs_map_t& instantiated_mrs)
 {
     for (const clang::DeclRefExpr* mr_dre : instr->mr_calls)
     {
@@ -122,7 +121,6 @@ instructionReducer::instructionReducer(variant_instruction_t* instr,
 
 recursionReducer::recursionReducer(const clang::DeclRefExpr* dre,
     std::vector<reduction_data_t*>& processed_reductions)
-    //instantiated_mrs_map_t& instantiated_mrs)
 {
     assert(globals::instantiated_mrs.count(dre));
     EMIT_DEBUG_INFO("Folding recursion call " + dre->getNameInfo().getAsString(), 4);
@@ -133,3 +131,49 @@ recursionReducer::recursionReducer(const clang::DeclRefExpr* dre,
         ->getBaseMR(globals::mr_names_list);
     this->new_string = "metalib::" + base_mri->getFullName();
 }
+
+/*******************************************************************************
+ * fuzzingInstrReducer
+ ******************************************************************************/
+
+/**
+ * Replaces a fuzzing instruction for a specific object type with a user provided
+ * minimal value of that type (contained within `globals::reduce_fn_list`).
+ */
+
+fuzzingInstrReducer::fuzzingInstrReducer(
+    std::pair<std::string, const clang::Stmt*> instr_data,
+    std::vector<reduction_data_t*>& processed_reductions)
+{
+    fuzzing_region_t* fr = globals::fuzzing_regions.at(instr_data.first);
+
+    std::string reduction_type_name = "";
+    if (const clang::DeclStmt* ds = llvm::dyn_cast<clang::DeclStmt>(instr_data.second))
+    {
+        assert(ds->isSingleDecl());
+        if (const clang::VarDecl* vd = llvm::dyn_cast<clang::VarDecl>(ds->getSingleDecl()))
+        {
+            reduction_type_name = vd->getType().getAsString();
+            this->to_modify = vd->getInit()->getSourceRange();
+        }
+    }
+    assert(!reduction_type_name.empty());
+
+    std::stringstream reduced_call;
+    reduce_fn_data* red_fn = globals::reduce_fn_list.at(reduction_type_name);
+    reduced_call << red_fn->reduce_fn->getQualifiedNameAsString() << "(";
+    std::string concrete_args =
+        std::accumulate(std::begin(red_fn->reduce_fn_arg_types) + 1,
+        std::end(red_fn->reduce_fn_arg_types),
+        std::string(fr->param_names.at(red_fn->reduce_fn_arg_types.front())),
+        [&fr](std::string acc, std::string arg_type)
+        {
+            std::string to_add = fr->param_names.at(arg_type);
+            return acc + "," + to_add;
+        });
+    reduced_call << concrete_args << ")";
+
+    //this->to_modify = instr->getSourceRange();
+    this->new_string = reduced_call.str();
+}
+

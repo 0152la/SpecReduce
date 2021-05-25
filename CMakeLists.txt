@@ -27,6 +27,8 @@ add_executable(mfReduce
     ${SRC_DIR}/reductionPass.cpp
     ${SRC_DIR}/MRGatherer.cpp
     ${SRC_DIR}/helperFunctions.cpp
+    ${SRC_DIR}/fuzzingReduction.cpp
+    ${SRC_DIR}/globals.cpp
     )
 
 if (NOT LLVM_ENABLE_RTTI)

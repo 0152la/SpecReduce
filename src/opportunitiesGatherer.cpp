@@ -2,6 +2,9 @@
 
 mainTraverser* main_traverser = nullptr;
 
+const std::string fuzz_start_marker_name = "mfr_fuzz_start";
+const std::string fuzz_end_marker_name = "mfr_fuzz_end";
+
 bool
 checkNameIsVariant(std::string name_check)
 {
@@ -36,9 +39,6 @@ instantiatedMRVisitor::instantiatedMRVisitor(clang::DeclRefExpr* _dre, const mrI
     base_dre(_dre), fd_mri(_mri)
 {
     instantiated_mr_t* imr = new instantiated_mr_t(this->base_dre, this->fd_mri);
-    //this->base_dre->dump();
-    //std::cout << this->fd_mri->getFullName() << std::endl;
-    //std::cout << "============================================================" << std::endl;
     globals::instantiated_mrs.emplace(this->base_dre, imr);
     const clang::FunctionDecl* dre_fd =
         llvm::dyn_cast<clang::FunctionDecl>(this->base_dre->getDecl());
@@ -137,9 +137,6 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
     {
         if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd))
         {
-            //dre->dump();
-            //std::cout << fd_mri->getFullName() << std::endl;
-            //std::cout << "============================================================" << std::endl;
             instantiatedMRVisitor imr_visit(dre, fd_mri);
 
             if (this->curr_variant_vd)
@@ -186,8 +183,156 @@ mainTraverserCallback::run(const clang::ast_matchers::MatchFinder::MatchResult& 
     main_traverser->setVisited();
 }
 
+/*******************************************************************************
+ * Fuzzing reduction helper functions
+ ******************************************************************************/
+
+reductionFuncParamFinder::reductionFuncParamFinder(
+    const clang::FunctionDecl* root_fd)
+{
+    this->remaining_param_types = globals::reduce_fn_param_types;
+    this->TraverseFunctionDecl(const_cast<clang::FunctionDecl*>(root_fd));
+    assert(this->remaining_param_types.empty());
+}
+
+bool
+reductionFuncParamFinder::VisitVarDecl(clang::VarDecl* vd)
+{
+    for (auto it = this->remaining_param_types.begin();
+        it != this->remaining_param_types.end(); ++it)
+    {
+        if (!vd->getType().getAsString().compare(*it))
+        {
+            this->concrete_param_vars.emplace(*it, vd->getNameAsString());
+            this->remaining_param_types.erase(it);
+            break;
+        }
+    }
+    return !this->remaining_param_types.empty();
+}
+
+std::vector<const clang::Stmt*>
+fuzzerGathererCallback::getFuzzingStmts(const clang::CallExpr* start_ce,
+    const clang::CompoundStmt* cs)
+{
+    bool in_sequence = false;
+    std::vector<const clang::Stmt*> fuzzing_instrs;
+
+    for (clang::CompoundStmt::const_body_iterator it = cs->body_begin();
+        it != cs->body_end(); ++it)
+    {
+        const clang::Stmt* child_expr = *it;
+        if (const clang::ExprWithCleanups* ewc =
+            llvm::dyn_cast<clang::ExprWithCleanups>(child_expr))
+        {
+            child_expr = ewc->getSubExpr();
+        }
+
+        const clang::CallExpr* ce = llvm::dyn_cast<clang::CallExpr>(child_expr);
+        if (ce == start_ce)
+        {
+            in_sequence = true;
+        }
+        else if (ce) // && ce->getNumArgs() == 1)
+        {
+            if (ce->getDirectCallee()->getQualifiedNameAsString()
+                    .find(fuzz_end_marker_name) != std::string::npos)
+            {
+                return fuzzing_instrs;
+            }
+        }
+        else if (in_sequence)
+        {
+            fuzzing_instrs.push_back(*it);
+        }
+    }
+    assert(false);
+}
+
+void
+literalFinder::run(const clang::ast_matchers::MatchFinder::MatchResult& Result)
+{
+    assert(this->parsed_string.empty());
+    const clang::StringLiteral* sl = Result.Nodes.getNodeAs<clang::StringLiteral>("stringLiteral");
+    this->parsed_string = sl->getString();
+}
+
+void
+fuzzerGathererCallback::run(const clang::ast_matchers::MatchFinder::MatchResult& Result)
+{
+    const clang::FunctionDecl* rootFD =
+        Result.Nodes.getNodeAs<clang::FunctionDecl>("rootFD");
+    assert(rootFD);
+    const clang::CompoundStmt* rootCS =
+        Result.Nodes.getNodeAs<clang::CompoundStmt>("rootCS");
+    assert(rootCS);
+    const clang::CallExpr* start_ce =
+        Result.Nodes.getNodeAs<clang::CallExpr>("fuzzStart");
+
+    clang::ast_matchers::MatchFinder lit_finder;
+    literalFinder literal_finder_cb;
+
+    lit_finder.addMatcher(
+        clang::ast_matchers::expr(
+        clang::ast_matchers::hasDescendant(
+        clang::ast_matchers::stringLiteral()
+            .bind("stringLiteral"))), &literal_finder_cb);
+
+    for (const clang::Expr* e : start_ce->arguments())
+    {
+        lit_finder.match(*e, main_traverser->ctx);
+    }
+    assert(!literal_finder_cb.parsed_string.empty());
+
+    reductionFuncParamFinder rfpm(rootFD);
+
+    fuzzing_region_t* new_fuzz_region =
+        new fuzzing_region_t(literal_finder_cb.parsed_string,
+            getFuzzingStmts(start_ce, rootCS),
+            rfpm.concrete_param_vars, main_traverser->ctx);
+    globals::fuzzing_regions.emplace(literal_finder_cb.parsed_string, new_fuzz_region);
+}
+
+void
+fuzzReductionFunctionGatherer::run(const clang::ast_matchers::MatchFinder::MatchResult& Result)
+{
+    const clang::FunctionDecl* reduce_func =
+        Result.Nodes.getNodeAs<clang::FunctionDecl>("reduceFunc");
+    assert(reduce_func);
+    if (!reduce_func->getNameAsString().compare(fuzz_start_marker_name) ||
+            !reduce_func->getNameAsString().compare(fuzz_end_marker_name))
+    {
+        return;
+    }
+    reduce_fn_data* rfd = new reduce_fn_data(reduce_func);
+    globals::reduce_fn_list.emplace(
+        reduce_func->getReturnType().getAsString(), rfd);
+}
+
 opportunitiesGatherer::opportunitiesGatherer(clang::ASTContext& ctx)
 {
+    if (globals::reduce_fn_list.empty())
+    {
+        mr_matcher.addMatcher(
+            clang::ast_matchers::functionDecl(
+            clang::ast_matchers::matchesName("mfr_*"))
+                .bind("reduceFunc"), &fuzz_reduction_fns_cb);
+    }
+
+    mr_matcher.addMatcher(
+        clang::ast_matchers::callExpr(
+        clang::ast_matchers::allOf(
+            clang::ast_matchers::callee(
+            clang::ast_matchers::functionDecl(
+            clang::ast_matchers::hasName(fuzz_start_marker_name))),
+
+            clang::ast_matchers::hasAncestor(
+            clang::ast_matchers::compoundStmt(
+            clang::ast_matchers::hasParent(
+            clang::ast_matchers::functionDecl()
+                .bind("rootFD")))
+                .bind("rootCS"))))
+                .bind("fuzzStart"), &fuzzer_gatherer_cb);
 
     mr_matcher.addMatcher(
         clang::ast_matchers::functionDecl(

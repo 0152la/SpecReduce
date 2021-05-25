@@ -50,10 +50,14 @@ int globals::expected_return_code;
 std::string globals::output_file;
 std::string globals::interestingness_test_path = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_reduce/scripts/interestingness.py";
 std::set<mrInfo*> globals::mr_names_list;
+std::map<std::string, reduce_fn_data*> globals::reduce_fn_list;
+std::set<std::string> globals::reduce_fn_param_types;
+
 instantiated_mrs_map_t globals::instantiated_mrs;
 variant_decls_map_t globals::variant_decls;
 variant_instrs_map_t globals::variant_instrs;
 variant_instr_index_map_t globals::variant_instr_index;
+fuzzing_regions_map_t globals::fuzzing_regions;
 
 int
 main(int argc, char const **argv)
@@ -70,15 +74,15 @@ main(int argc, char const **argv)
     std::string input_file = op.getSourcePathList().front();
 
     /* Sanity check */
-    interestingExecutor int_exec(input_file, globals::interestingness_test_path);
-    if (int_exec.runInterestingnessTest())
-    {
-        std::cout << "Sanity check return exit code " << int_exec.getReturnCode() << std::endl;
-        return 1;
-    }
-    globals::expected_return_code = int_exec.getReturnCode();
-    EMIT_DEBUG_INFO("Set expected return code " +
-        std::to_string(globals::expected_return_code) , 1);
+    //interestingExecutor int_exec(input_file, globals::interestingness_test_path);
+    //if (int_exec.runInterestingnessTest())
+    //{
+        //std::cout << "Sanity check return exit code " << int_exec.getReturnCode() << std::endl;
+        //return 1;
+    //}
+    //globals::expected_return_code = int_exec.getReturnCode();
+    //EMIT_DEBUG_INFO("Set expected return code " +
+        //std::to_string(globals::expected_return_code) , 1);
 
     do
     {

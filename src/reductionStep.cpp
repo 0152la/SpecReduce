@@ -64,6 +64,13 @@ reductionStep::reductionStep(reduction_datas_t _rds)
                 mr_instance_data->calling_dre, processed_reductions));
     }
 
+    for (std::pair<std::string, const clang::Stmt*> rd_fuzz_data : _rds.fuzzed_instrs)
+    {
+        EMIT_DEBUG_INFO("Adding fuzzing reduction for instruction of variable name " + rd_fuzz_data.first, 3);
+        this->opportunities.push_back(
+            new fuzzingInstrReducer(rd_fuzz_data, processed_reductions));
+    }
+
     for (reduction_data_t* rd : processed_reductions)
     {
         rd->marked = false;

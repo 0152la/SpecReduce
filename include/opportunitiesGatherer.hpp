@@ -37,7 +37,6 @@ class mainTraverser : public clang::RecursiveASTVisitor<mainTraverser>
 {
     private:
         std::stack<const clang::FunctionDecl*> mr_fd_stack;
-        clang::ASTContext& ctx;
         bool visited = false;
 
         const clang::CompoundStmt* main_child = nullptr;
@@ -50,6 +49,8 @@ class mainTraverser : public clang::RecursiveASTVisitor<mainTraverser>
             const clang::ast_type_traits::DynTypedNode);
 
     public:
+        clang::ASTContext& ctx;
+
         mainTraverser(clang::ASTContext& _ctx) : ctx(_ctx) { };
 
         //bool VisitCallExpr(clang::CallExpr*);
@@ -71,11 +72,58 @@ class mainTraverserCallback : public clang::ast_matchers::MatchFinder::MatchCall
             run(const clang::ast_matchers::MatchFinder::MatchResult&) override;
 };
 
+/*******************************************************************************
+ * Fuzzing reduction helper functions
+ ******************************************************************************/
+
+class reductionFuncParamFinder :
+    public clang::RecursiveASTVisitor<reductionFuncParamFinder>
+{
+    public:
+        std::map<std::string, std::string> concrete_param_vars;
+        std::set<std::string> remaining_param_types;
+
+        reductionFuncParamFinder(const clang::FunctionDecl*);
+
+        bool VisitVarDecl(clang::VarDecl*);
+};
+
+class literalFinder : public clang::ast_matchers::MatchFinder::MatchCallback
+{
+    public:
+        std::string parsed_string = "";
+
+        virtual void
+            run(const clang::ast_matchers::MatchFinder::MatchResult&) override;
+};
+
+class fuzzerGathererCallback : public clang::ast_matchers::MatchFinder::MatchCallback
+{
+    public:
+        virtual void
+            run(const clang::ast_matchers::MatchFinder::MatchResult&) override;
+
+    private:
+        std::vector<const clang::Stmt*> getFuzzingStmts(const clang::CallExpr*, const clang::CompoundStmt*);
+};
+
+class fuzzReductionFunctionGatherer : public clang::ast_matchers::MatchFinder::MatchCallback
+{
+    public:
+        std::map<clang::QualType, const clang::FunctionDecl*> reduction_fns;
+        //std::vector<const clang::FunctionDecl*> reduction_fns;
+
+        virtual void
+            run(const clang::ast_matchers::MatchFinder::MatchResult&) override;
+};
+
 class opportunitiesGatherer
 {
     private:
         clang::ast_matchers::MatchFinder mr_matcher;
         mainTraverserCallback main_traverser_cb;
+        fuzzerGathererCallback fuzzer_gatherer_cb;
+        fuzzReductionFunctionGatherer fuzz_reduction_fns_cb;
 
     public:
         opportunitiesGatherer(clang::ASTContext&);

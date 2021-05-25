@@ -12,12 +12,8 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
     opportunitiesGatherer og(ctx);
 
     reduction_datas_t global_reductions(globals::variant_decls,
-        globals::variant_instr_index, globals::instantiated_mrs);
-
-    for (const clang::VarDecl* vd : global_reductions.variant_decls)
-    {
-        //vd->dump();
-    }
+        globals::variant_instr_index, globals::instantiated_mrs,
+        globals::fuzzing_regions);
 
     // Do not reduce variant 0
     global_reductions.variant_decls.erase(
@@ -27,11 +23,6 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
                 return vd->getNameAsString().find("_0")
                     != std::string::npos; }),
         global_reductions.variant_decls.end());
-
-    for (const clang::VarDecl* vd : global_reductions.variant_decls)
-    {
-        //vd->dump();
-    }
 
     // Do not reduce sequence index 0
     global_reductions.variant_instr_index.erase(
@@ -44,7 +35,7 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
     bool success = false;
     llvm::SmallString<256> tmp_path;
 
-    while (!success && this->rd_type <= REDUCTION_TYPE::RECURSION_REMOVAL)
+    while (!success && this->rd_type <= REDUCTION_TYPE::FUZZING_REDUCTION)
     {
         if (this->chunk_size == CHUNK_SIZE_DEF_VALUE)
         {
@@ -88,6 +79,7 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
             rw_tmp.getEditBuffer(rw_tmp.getSourceMgr().getMainFileID()).write(temp_rfo);
             temp_rfo.close();
             EMIT_DEBUG_INFO(("Wrote tmp output file " + tmp_path).str(), 3);
+            exit(1);
 
             interestingExecutor int_exec(tmp_path.str(), globals::interestingness_test_path);
             success = int_exec.runInterestingnessTest(globals::expected_return_code);
@@ -153,7 +145,11 @@ reductionEngine::selectSequentialChunkReductions(
         this->rd_type == RECURSION_REMOVAL
         ? this->selectChunks(global_reductions.recursive_calls)
         : std::vector<const clang::DeclRefExpr*>();
-    return reduction_datas_t(r_vds, r_viidxs, r_imrs);
+    std::vector<std::pair<std::string, const clang::Stmt*>> r_fr =
+        this->rd_type == FUZZING_REDUCTION
+        ? this->selectChunks(global_reductions.fuzzed_instrs)
+        : std::vector<std::pair<std::string, const clang::Stmt*>>();
+    return reduction_datas_t(r_vds, r_viidxs, r_imrs, r_fr);
 }
 
 void
