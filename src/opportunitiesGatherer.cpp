@@ -38,6 +38,10 @@ mainTraverser::getBaseParent(const clang::ast_type_traits::DynTypedNode dyn_node
 instantiatedMRVisitor::instantiatedMRVisitor(clang::DeclRefExpr* _dre, const mrInfo* _mri) :
     base_dre(_dre), fd_mri(_mri)
 {
+    if (_mri->is_base)
+    {
+        return;
+    }
     instantiated_mr_t* imr = new instantiated_mr_t(this->base_dre, this->fd_mri);
     globals::instantiated_mrs.emplace(this->base_dre, imr);
     const clang::FunctionDecl* dre_fd =
@@ -52,7 +56,8 @@ instantiatedMRVisitor::VisitDeclRefExpr(clang::DeclRefExpr* dre)
 {
     if (clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(dre->getDecl()))
     {
-        if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd))
+        if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd);
+            fd_mri && !fd_mri->is_base && fd_mri->type.compare("checks"))
         {
             globals::instantiated_mrs.at(this->base_dre)->recursive_calls.push_back(dre);
             instantiatedMRVisitor imr_visit(dre, fd_mri);
@@ -135,15 +140,18 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
     }
     else if (clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(dre->getDecl()))
     {
-        if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd))
+        std::string n = fd->getNameAsString();
+        if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd);
+            fd_mri && fd_mri->type.compare("checks"))
         {
+
             instantiatedMRVisitor imr_visit(dre, fd_mri);
 
             if (this->curr_variant_vd)
             {
                 assert(globals::variant_decls.count(this->curr_variant_vd));
                 const clang::Stmt* dre_base_stmt = this->getBaseParent(dre).get<clang::Stmt>();
-                if (globals::variant_instrs.count(dre_base_stmt))
+                if (globals::variant_instrs.count(dre_base_stmt) && !fd_mri->is_base)
                 {
                     globals::variant_instrs.at(dre_base_stmt)->mr_calls.push_back(dre);
                     // TODO optionally check that the stmt is in the variant_decl_t object
@@ -152,9 +160,11 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
                 {
                     variant_instruction_t* var_instr =
                         new variant_instruction_t(dre_base_stmt, this->curr_variant_vd);
-                    var_instr->mr_calls.push_back(dre);
+                    if (!fd_mri->is_base)
+                    {
+                        var_instr->mr_calls.push_back(dre);
+                    }
                     globals::variant_instrs.emplace(dre_base_stmt, var_instr);
-
                     globals::variant_decls.at(this->curr_variant_vd)->instrs.push_back(dre_base_stmt);
                     if (!globals::variant_instr_index.count(this->curr_vd_index))
                     {
@@ -311,6 +321,7 @@ fuzzReductionFunctionGatherer::run(const clang::ast_matchers::MatchFinder::Match
 
 opportunitiesGatherer::opportunitiesGatherer(clang::ASTContext& ctx)
 {
+    // Gather reduction function data, but only once
     if (globals::reduce_fn_list.empty())
     {
         mr_matcher.addMatcher(

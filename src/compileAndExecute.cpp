@@ -43,7 +43,6 @@ interestingExecutor::runInterestingnessTest(const int expected)
 {
     std::string interesting_execute_str =
         this->interesting_script_path + " --logging none " + this->test_path;
-    std::cout << interesting_execute_str << std::endl;
     std::FILE* execute_interest_test = popen(interesting_execute_str.c_str(), "r");
     this->return_code = WEXITSTATUS(pclose(execute_interest_test));
     assert(!errno);

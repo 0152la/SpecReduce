@@ -1,6 +1,7 @@
 #include "MRGatherer.hpp"
 
-mrInfo::mrInfo(std::string _qual_name, bool _base) : is_base(_base)
+mrInfo::mrInfo(std::string _qual_name, bool _base) : is_base(_base),
+    qual_name(_qual_name)
 {
     const std::string delim = "::", check_mr_type = "checks";
     const size_t mr_name_token_count = 4;

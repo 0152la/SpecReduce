@@ -4,11 +4,15 @@
 #include "globals.hpp"
 #include "compileAndExecute.hpp"
 
-
 void
 reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
 {
-    MRGatherer mrg(ctx);
+    // Gather declared MRs, but only once
+    if (globals::mr_names_list.empty())
+    {
+        MRGatherer mrg(ctx);
+    }
+
     opportunitiesGatherer og(ctx);
 
     reduction_datas_t global_reductions(globals::variant_decls,
@@ -51,12 +55,12 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
             }
         }
 
-        reduction_datas_t step_reductions = this->selectReductions(global_reductions);
-
         EMIT_DEBUG_INFO("Reduction loop count " + std::to_string(reduction_attempt) +
             " [TYPE IDX " + std::to_string(this->rd_type) +
             "] [CHUNK SIZE " + std::to_string(this->chunk_size) +
             "] [OFFSET " + std::to_string(this->offset) + "]", 2);
+
+        reduction_datas_t step_reductions = this->selectReductions(global_reductions);
 
         if (!step_reductions.empty())
         {
@@ -79,7 +83,6 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
             rw_tmp.getEditBuffer(rw_tmp.getSourceMgr().getMainFileID()).write(temp_rfo);
             temp_rfo.close();
             EMIT_DEBUG_INFO(("Wrote tmp output file " + tmp_path).str(), 3);
-            exit(1);
 
             interestingExecutor int_exec(tmp_path.str(), globals::interestingness_test_path);
             success = int_exec.runInterestingnessTest(globals::expected_return_code);
@@ -88,8 +91,8 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
 
             if (success)
             {
-                ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
-                //ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
+                //ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
+                ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
                 EMIT_DEBUG_INFO("Wrote output file " + globals::output_file, 2);
                 globals::reduction_success = true;
                 this->cleanup();

@@ -15,6 +15,7 @@ struct mrInfo
     std::string type;
     std::string name;
     std::string family = "";
+    std::string qual_name;
     bool is_base;
 
     mrInfo(std::string, bool);

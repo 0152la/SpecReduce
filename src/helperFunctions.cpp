@@ -32,7 +32,26 @@ const mrInfo*
 checkFunctionIsMRCall(const clang::FunctionDecl* fd)
 {
     EMIT_DEBUG_INFO("Checking function " + fd->getNameAsString() + " is MR call.", 4);
-    std::string fd_name = fd->getNameAsString();
+    std::string fd_name = fd->getQualifiedNameAsString();
+
+    // Special case for direct MR calls, not transplanted ones
+    if (fd_name.find("metalib::") == 0)
+    {
+        for (const mrInfo* mr_info : globals::mr_names_list)
+        {
+            std::string mr_name = mr_info->qual_name;
+            if (!fd_name.compare(mr_name))
+            {
+                EMIT_DEBUG_INFO("Found MR " + mr_name + " for call " + fd_name, 4);
+                return mr_info;
+            }
+        }
+        return nullptr;
+    }
+
+    // Must check if the function call is of the unqualified form <name>_<id>,
+    // where <name> is a declared MR and <id> is a unique digit identifier
+    fd_name = fd->getNameAsString();
     std::string::reverse_iterator r_it = fd_name.rbegin();
     size_t delim_count = 0, expected_count = 2, char_count = 0;
     while (delim_count < expected_count && r_it != fd_name.rend())
@@ -57,6 +76,7 @@ checkFunctionIsMRCall(const clang::FunctionDecl* fd)
             if (mr_name.find(fd_name) != std::string::npos &&
                     mr_name.find(fd_name) == mr_name.size() - fd_name.size())
             {
+                EMIT_DEBUG_INFO("Found MR " + mr_name + " for call " + fd_name, 4);
                 return mr_info;
             }
         }

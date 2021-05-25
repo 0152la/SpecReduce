@@ -74,15 +74,15 @@ main(int argc, char const **argv)
     std::string input_file = op.getSourcePathList().front();
 
     /* Sanity check */
-    //interestingExecutor int_exec(input_file, globals::interestingness_test_path);
-    //if (int_exec.runInterestingnessTest())
-    //{
-        //std::cout << "Sanity check return exit code " << int_exec.getReturnCode() << std::endl;
-        //return 1;
-    //}
-    //globals::expected_return_code = int_exec.getReturnCode();
-    //EMIT_DEBUG_INFO("Set expected return code " +
-        //std::to_string(globals::expected_return_code) , 1);
+    interestingExecutor int_exec(input_file, globals::interestingness_test_path);
+    if (int_exec.runInterestingnessTest())
+    {
+        std::cout << "Sanity check return exit code " << int_exec.getReturnCode() << std::endl;
+        return 1;
+    }
+    globals::expected_return_code = int_exec.getReturnCode();
+    EMIT_DEBUG_INFO("Set expected return code " +
+        std::to_string(globals::expected_return_code) , 1);
 
     do
     {
@@ -103,4 +103,10 @@ main(int argc, char const **argv)
     {
         delete(mri);
     }
+    for (std::pair<std::string, reduce_fn_data*> rd_fn_pair : globals::reduce_fn_list)
+    {
+        delete(rd_fn_pair.second);
+    }
+
+    EMIT_DEBUG_INFO("Final reduced program written to " + globals::output_file, 1);
 }

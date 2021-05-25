@@ -36,10 +36,7 @@ fuzzingTreeNode::getNodeByWrittenVar(const clang::VarDecl* write_var)
 {
     std::set<const clang::VarDecl*>::const_iterator search_vd =
         this->read_vars.find(write_var);
-    //for (const clang::VarDecl* vd : this->read_vars)
-    //{
-        //vd->dump();
-    //}
+
     if (search_vd != this->read_vars.end())
     {
         return this;
@@ -64,13 +61,10 @@ fuzzingTree::fuzzingTree(std::vector<const clang::Stmt*> input, clang::ASTContex
     assert(ds->isSingleDecl());
     const clang::VarDecl* vd = llvm::dyn_cast<clang::VarDecl>(ds->getSingleDecl());
     assert(vd);
-    //ds->dump();
-    //vd->dump();
     this->base = new fuzzingTreeNode(vd, ctx);
     input_it += 1;
     for (; input_it != input.rend(); ++input_it)
     {
-        (*input_it)->dump();
         ds = llvm::dyn_cast<clang::DeclStmt>(*input_it);
         if (!ds)
         {
@@ -79,8 +73,6 @@ fuzzingTree::fuzzingTree(std::vector<const clang::Stmt*> input, clang::ASTContex
         assert(ds->isSingleDecl());
         vd = llvm::dyn_cast<clang::VarDecl>(ds->getSingleDecl());
         assert(vd);
-        //ds->dump();
-        //vd->dump();
         this->getNodeByWrittenVar(vd)->children.push_back(new fuzzingTreeNode(vd, ctx));
     }
 }

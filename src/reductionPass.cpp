@@ -9,7 +9,6 @@
 void
 reductionPass::applyReduction(clang::Rewriter& rw)
 {
-    //this->to_modify.dump(rw.getSourceMgr());
     rw.ReplaceText(this->to_modify, new_string);
     for (const clang::FunctionDecl*  fd : this->cleanup_functions)
     {

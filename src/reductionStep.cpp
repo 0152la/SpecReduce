@@ -28,7 +28,6 @@ reductionStep::reductionStep(reduction_datas_t _rds)
             std::to_string(rd_idx), 3);
         for (variant_instruction_t* var_instr : globals::variant_instr_index.at(rd_idx))
         {
-            var_instr->instr->dump();
             if (var_instr->marked)
             {
                 EMIT_DEBUG_INFO("Skipping marked instruction index " +

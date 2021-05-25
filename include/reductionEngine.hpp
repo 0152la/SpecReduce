@@ -31,7 +31,7 @@ class reductionEngine : public clang::ASTConsumer
         clang::Rewriter& rw;
         size_t chunk_size = CHUNK_SIZE_DEF_VALUE;
         size_t offset = 0;
-        REDUCTION_TYPE rd_type = FUZZING_REDUCTION; //VARIANT_ELIMINATION;
+        REDUCTION_TYPE rd_type = VARIANT_ELIMINATION;
 
         const size_t max_reduction_attempts = 3;
 
