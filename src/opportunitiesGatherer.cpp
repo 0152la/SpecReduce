@@ -228,6 +228,24 @@ reductionFuncParamFinder::VisitVarDecl(clang::VarDecl* vd)
     return !this->remaining_param_types.empty();
 }
 
+prevFuzzedChecker::prevFuzzedChecker(const clang::Stmt* s)
+{
+    this->TraverseStmt(const_cast<clang::Stmt*>(s));
+}
+
+bool
+prevFuzzedChecker::VisitCallExpr(clang::CallExpr* ce)
+{
+    if (const clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(ce->getDirectCallee()))
+    {
+        if (globals::reduce_fn_names.count(fd->getQualifiedNameAsString()))
+        {
+            this->was_fuzzed = true;
+        }
+    }
+    return false;
+}
+
 std::vector<const clang::Stmt*>
 fuzzerGathererCallback::getFuzzingStmts(const clang::CallExpr* start_ce,
     const clang::CompoundStmt* cs)
@@ -246,11 +264,12 @@ fuzzerGathererCallback::getFuzzingStmts(const clang::CallExpr* start_ce,
         }
 
         const clang::CallExpr* ce = llvm::dyn_cast<clang::CallExpr>(child_expr);
+        child_expr->dump();
         if (ce == start_ce)
         {
             in_sequence = true;
         }
-        else if (ce) // && ce->getNumArgs() == 1)
+        else if (in_sequence && ce)
         {
             if (ce->getDirectCallee()->getQualifiedNameAsString()
                     .find(fuzz_end_marker_name) != std::string::npos)
@@ -258,9 +277,18 @@ fuzzerGathererCallback::getFuzzingStmts(const clang::CallExpr* start_ce,
                 return fuzzing_instrs;
             }
         }
-        else if (in_sequence)
+        else if (in_sequence && !llvm::dyn_cast<clang::NullStmt>(child_expr))
         {
-            fuzzing_instrs.push_back(*it);
+            if (llvm::dyn_cast<clang::NullStmt>(child_expr))
+            {
+                continue;
+            }
+            prevFuzzedChecker pfc(child_expr);
+            if (pfc.was_fuzzed)
+            {
+                continue;
+            }
+            fuzzing_instrs.push_back(child_expr);
         }
     }
     assert(false);
@@ -324,6 +352,7 @@ fuzzReductionFunctionGatherer::run(const clang::ast_matchers::MatchFinder::Match
     reduce_fn_data* rfd = new reduce_fn_data(reduce_func);
     globals::reduce_fn_list.emplace(
         reduce_func->getReturnType().getAsString(), rfd);
+    globals::reduce_fn_names.insert(reduce_func->getQualifiedNameAsString());
 }
 
 opportunitiesGatherer::opportunitiesGatherer(clang::ASTContext& ctx)

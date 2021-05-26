@@ -53,7 +53,7 @@ reduction_datas_t::reduceFuzzingRegionsToInstr(
 }
 
 reduce_fn_data::reduce_fn_data(const clang::FunctionDecl* _rd_fn) :
-    reduce_fn(_rd_fn)
+    fn_name(_rd_fn->getQualifiedNameAsString())
 {
     for (const clang::ParmVarDecl* param : _rd_fn->parameters())
     {

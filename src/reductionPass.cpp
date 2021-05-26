@@ -147,6 +147,7 @@ fuzzingInstrReducer::fuzzingInstrReducer(
     fuzzing_region_t* fr = globals::fuzzing_regions.at(instr_data.first);
 
     std::string reduction_type_name = "";
+    //instr_data.second->dump();
     if (const clang::DeclStmt* ds = llvm::dyn_cast<clang::DeclStmt>(instr_data.second))
     {
         assert(ds->isSingleDecl());
@@ -160,7 +161,7 @@ fuzzingInstrReducer::fuzzingInstrReducer(
 
     std::stringstream reduced_call;
     reduce_fn_data* red_fn = globals::reduce_fn_list.at(reduction_type_name);
-    reduced_call << red_fn->reduce_fn->getQualifiedNameAsString() << "(";
+    reduced_call << red_fn->fn_name << "(";
     std::string concrete_args =
         std::accumulate(std::begin(red_fn->reduce_fn_arg_types) + 1,
         std::end(red_fn->reduce_fn_arg_types),

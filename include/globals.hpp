@@ -120,7 +120,8 @@ struct fuzzing_region_t : reduction_data_t
 
 struct reduce_fn_data
 {
-    const clang::FunctionDecl* reduce_fn;
+    //const clang::FunctionDecl* reduce_fn;
+    std::string fn_name;
     std::vector<std::string> reduce_fn_arg_types;
 
     reduce_fn_data(const clang::FunctionDecl*);
@@ -213,6 +214,7 @@ extern fuzzing_regions_map_t fuzzing_regions;
 
 extern std::set<mrInfo*> mr_names_list;
 extern std::map<std::string, reduce_fn_data*> reduce_fn_list;
+extern std::set<std::string> reduce_fn_names;
 extern std::set<std::string> reduce_fn_param_types;
 extern std::set<const clang::FunctionDecl*> checked_non_mrs;
 

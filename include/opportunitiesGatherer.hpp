@@ -88,6 +88,18 @@ class reductionFuncParamFinder :
         bool VisitVarDecl(clang::VarDecl*);
 };
 
+// Checks whether a Stmt was previously fuzz reduced
+class prevFuzzedChecker :
+    public clang::RecursiveASTVisitor<prevFuzzedChecker>
+{
+    public:
+        bool was_fuzzed = false;
+
+        prevFuzzedChecker(const clang::Stmt*);
+
+        bool VisitCallExpr(clang::CallExpr*);
+};
+
 class literalFinder : public clang::ast_matchers::MatchFinder::MatchCallback
 {
     public:

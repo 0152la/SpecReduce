@@ -71,6 +71,7 @@ std::string globals::cmake_file_path;
 // Global reduction metadata
 std::set<mrInfo*> globals::mr_names_list;
 std::map<std::string, reduce_fn_data*> globals::reduce_fn_list;
+std::set<std::string> globals::reduce_fn_names;
 std::set<std::string> globals::reduce_fn_param_types;
 std::set<const clang::FunctionDecl*> globals::checked_non_mrs;
 

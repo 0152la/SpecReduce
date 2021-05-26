@@ -14,6 +14,7 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
     }
 
     opportunitiesGatherer og(ctx);
+    //assert(false);
 
     reduction_datas_t global_reductions(globals::variant_decls,
         globals::variant_instr_index, globals::instantiated_mrs,
@@ -91,8 +92,8 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
 
             if (success)
             {
-                //ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
-                ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
+                ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
+                //ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
                 EMIT_DEBUG_INFO("Wrote output file " + globals::output_file, 2);
                 globals::reduction_success = true;
                 globals::reduction_type_progress = this->rd_type;
@@ -131,6 +132,7 @@ reductionEngine::cleanup()
     globals::variant_instr_index.clear();
     this->cleanMap(globals::variant_instrs);
     this->cleanMap(globals::instantiated_mrs);
+    this->cleanMap(globals::fuzzing_regions);
 }
 
 reductionEngine::reductionEngine(clang::Rewriter& _rw) : rw(_rw)
