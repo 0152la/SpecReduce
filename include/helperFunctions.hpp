@@ -9,4 +9,7 @@
 void EMIT_DEBUG_INFO(const std::string, size_t);
 void ERROR_CHECK(std::error_code);
 
+bool checkIsMrCall(const clang::FunctionDecl*);
+bool checkIsTransplanted(const clang::FunctionDecl*);
+
 #endif

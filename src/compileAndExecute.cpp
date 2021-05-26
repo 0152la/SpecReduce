@@ -41,9 +41,15 @@ testExecutor::executeTestCase()
 bool
 interestingExecutor::runInterestingnessTest(const int expected)
 {
-    std::string interesting_execute_str =
-        this->interesting_script_path + " --logging none " + this->test_path;
-    std::FILE* execute_interest_test = popen(interesting_execute_str.c_str(), "r");
+    std::stringstream interesting_execute_str;
+    interesting_execute_str << globals::interestingness_test_path;
+    interesting_execute_str << " --logging none ";
+    interesting_execute_str << " --compile-script-path " << globals::compile_script_location;
+    interesting_execute_str << " --cmake-path " << globals::cmake_file_path;
+    interesting_execute_str << " " << this->test_path;
+
+    std::FILE* execute_interest_test =
+        popen(interesting_execute_str.str().c_str(), "r");
     this->return_code = WEXITSTATUS(pclose(execute_interest_test));
     assert(!errno);
     return this->return_code == expected;

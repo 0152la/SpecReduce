@@ -1,5 +1,7 @@
 #include "helperFunctions.hpp"
 
+const std::string transplant_prefix = "metalib::";
+
 void
 EMIT_DEBUG_INFO(const std::string debug_message, size_t priority)
 {
@@ -35,7 +37,7 @@ checkFunctionIsMRCall(const clang::FunctionDecl* fd)
     std::string fd_name = fd->getQualifiedNameAsString();
 
     // Special case for direct MR calls, not transplanted ones
-    if (fd_name.find("metalib::") == 0)
+    if (fd_name.find(transplant_prefix) == 0)
     {
         for (const mrInfo* mr_info : globals::mr_names_list)
         {
@@ -82,4 +84,12 @@ checkFunctionIsMRCall(const clang::FunctionDecl* fd)
         }
     }
     return nullptr;
+}
+
+bool
+checkIsTransplanted(const clang::FunctionDecl* check_fd)
+{
+    EMIT_DEBUG_INFO("Checking if transplanted " + check_fd->getNameAsString(), 4);
+    std::string n = check_fd->getNameAsString();
+    return check_fd->getQualifiedNameAsString().find(transplant_prefix) != 0;
 }

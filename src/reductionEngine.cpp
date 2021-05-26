@@ -84,17 +84,18 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
             temp_rfo.close();
             EMIT_DEBUG_INFO(("Wrote tmp output file " + tmp_path).str(), 3);
 
-            interestingExecutor int_exec(tmp_path.str(), globals::interestingness_test_path);
+            interestingExecutor int_exec(tmp_path.str());
             success = int_exec.runInterestingnessTest(globals::expected_return_code);
             EMIT_DEBUG_INFO("Retrieved return code " +
                 std::to_string(int_exec.getReturnCode()), 2);
 
             if (success)
             {
-                ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
-                //ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
+                //ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
+                ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
                 EMIT_DEBUG_INFO("Wrote output file " + globals::output_file, 2);
                 globals::reduction_success = true;
+                globals::reduction_type_progress = this->rd_type;
                 this->cleanup();
                 return;
             }
@@ -130,6 +131,18 @@ reductionEngine::cleanup()
     globals::variant_instr_index.clear();
     this->cleanMap(globals::variant_instrs);
     this->cleanMap(globals::instantiated_mrs);
+}
+
+reductionEngine::reductionEngine(clang::Rewriter& _rw) : rw(_rw)
+{
+    if (globals::monotonic_reduction)
+    {
+        this->rd_type = globals::reduction_type_progress;
+    }
+    else
+    {
+        this->rd_type = static_cast<REDUCTION_TYPE>(0);
+    }
 }
 
 reduction_datas_t

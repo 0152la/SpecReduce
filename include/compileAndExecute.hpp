@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
+#include "globals.hpp"
+
 class testExecutor
 {
     private:
@@ -32,8 +34,7 @@ class interestingExecutor
         int return_code;
 
     public:
-        interestingExecutor(std::string _test_path, std::string _interest_path) :
-            test_path(_test_path), interesting_script_path(_interest_path) {};
+        interestingExecutor(std::string _test_path) : test_path(_test_path) {};
 
         bool runInterestingnessTest(const int = 0);
         int getReturnCode() { return this->return_code; };

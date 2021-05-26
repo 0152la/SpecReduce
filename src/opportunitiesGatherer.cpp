@@ -38,15 +38,15 @@ mainTraverser::getBaseParent(const clang::ast_type_traits::DynTypedNode dyn_node
 instantiatedMRVisitor::instantiatedMRVisitor(clang::DeclRefExpr* _dre, const mrInfo* _mri) :
     base_dre(_dre), fd_mri(_mri)
 {
-    if (_mri->is_base)
+    const clang::FunctionDecl* dre_fd =
+        llvm::dyn_cast<clang::FunctionDecl>(this->base_dre->getDecl());
+    assert(dre_fd);
+    if (!checkIsTransplanted(dre_fd))
     {
         return;
     }
     instantiated_mr_t* imr = new instantiated_mr_t(this->base_dre, this->fd_mri);
     globals::instantiated_mrs.emplace(this->base_dre, imr);
-    const clang::FunctionDecl* dre_fd =
-        llvm::dyn_cast<clang::FunctionDecl>(this->base_dre->getDecl());
-    assert(dre_fd);
     clang::RecursiveASTVisitor<instantiatedMRVisitor>::TraverseFunctionDecl(
         const_cast<clang::FunctionDecl*>(dre_fd));
 }
@@ -54,10 +54,11 @@ instantiatedMRVisitor::instantiatedMRVisitor(clang::DeclRefExpr* _dre, const mrI
 bool
 instantiatedMRVisitor::VisitDeclRefExpr(clang::DeclRefExpr* dre)
 {
-    if (clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(dre->getDecl()))
+    if (clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(dre->getDecl());
+        fd && checkIsTransplanted(fd))
     {
         if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd);
-            fd_mri && !fd_mri->is_base && fd_mri->type.compare("checks"))
+            fd_mri && fd_mri->type.compare("checks"))
         {
             globals::instantiated_mrs.at(this->base_dre)->recursive_calls.push_back(dre);
             instantiatedMRVisitor imr_visit(dre, fd_mri);
@@ -71,8 +72,7 @@ bool
 mainTraverser::VisitCompoundStmt(clang::CompoundStmt* cs)
 {
     if (!main_traverser->getMainChild())
-    {
-        clang::ASTContext::DynTypedNodeList node_parents =
+    { clang::ASTContext::DynTypedNodeList node_parents =
             this->ctx.getParents(*cs);
         if (node_parents.size() == 1 &&
                 node_parents[0].get<clang::FunctionDecl>()->isMain())
@@ -140,20 +140,23 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
     }
     else if (clang::FunctionDecl* fd = llvm::dyn_cast<clang::FunctionDecl>(dre->getDecl()))
     {
-        std::string n = fd->getNameAsString();
-        if (const mrInfo* fd_mri = checkFunctionIsMRCall(fd);
-            fd_mri && fd_mri->type.compare("checks"))
+        bool is_checked_non_mr = globals::checked_non_mrs.count(fd);
+        const mrInfo* fd_mri = is_checked_non_mr
+            ? nullptr : checkFunctionIsMRCall(fd);
+        if (fd_mri && fd_mri->type.compare("checks"))
         {
-
             instantiatedMRVisitor imr_visit(dre, fd_mri);
 
             if (this->curr_variant_vd)
             {
                 assert(globals::variant_decls.count(this->curr_variant_vd));
                 const clang::Stmt* dre_base_stmt = this->getBaseParent(dre).get<clang::Stmt>();
-                if (globals::variant_instrs.count(dre_base_stmt) && !fd_mri->is_base)
+                if (globals::variant_instrs.count(dre_base_stmt)) // && !fd_mri->is_base)
                 {
-                    globals::variant_instrs.at(dre_base_stmt)->mr_calls.push_back(dre);
+                    if (!fd_mri->is_base)
+                    {
+                        globals::variant_instrs.at(dre_base_stmt)->mr_calls.push_back(dre);
+                    }
                     // TODO optionally check that the stmt is in the variant_decl_t object
                 }
                 else
@@ -175,6 +178,10 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
                     this->curr_vd_index += 1;
                 }
             }
+        }
+        else if (!fd_mri && !is_checked_non_mr)
+        {
+            globals::checked_non_mrs.insert(fd);
         }
     }
     clang::RecursiveASTVisitor<mainTraverser>::VisitDeclRefExpr(dre);

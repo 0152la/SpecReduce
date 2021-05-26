@@ -42,17 +42,39 @@ static llvm::cl::opt<size_t> ReducerNoProgressPasses("passes",
 static llvm::cl::opt<size_t> DebugLevel("debug",
     llvm::cl::desc("Verbosity of debug messages"),
     llvm::cl::init(2), llvm::cl::cat(reduceMetaTest));
+static llvm::cl::opt<std::string> CompileScriptPath("compile-script",
+    llvm::cl::desc("Path to compilation script"), llvm::cl::cat(reduceMetaTest),
+    llvm::cl::Required);
+static llvm::cl::opt<std::string> CMakeFilePath("cmake-path",
+    llvm::cl::desc("Path to cmake file for compilation script"),
+    llvm::cl::cat(reduceMetaTest), llvm::cl::Required);
+static llvm::cl::opt<std::string> InterestTest("interest-test",
+    llvm::cl::desc("Path to interestingness test script"),
+    llvm::cl::cat(reduceMetaTest), llvm::cl::Required);
+static llvm::cl::opt<bool> MonotonicReduction("monotonic",
+    llvm::cl::desc("Whether reduction should not revisit previous attempted and exhausted type."),
+    llvm::cl::init(true), llvm::cl::cat(reduceMetaTest));
 
 size_t globals::debug_level;
 size_t globals::reductions_count = 0;
 bool globals::reduction_success = false;
+bool globals::monotonic_reduction;
+REDUCTION_TYPE globals::reduction_type_progress;
 int globals::expected_return_code;
+
+// File paths
 std::string globals::output_file;
-std::string globals::interestingness_test_path = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_reduce/scripts/interestingness.py";
+std::string globals::interestingness_test_path;
+std::string globals::compile_script_location;
+std::string globals::cmake_file_path;
+
+// Global reduction metadata
 std::set<mrInfo*> globals::mr_names_list;
 std::map<std::string, reduce_fn_data*> globals::reduce_fn_list;
 std::set<std::string> globals::reduce_fn_param_types;
+std::set<const clang::FunctionDecl*> globals::checked_non_mrs;
 
+// Reduction step metadata
 instantiated_mrs_map_t globals::instantiated_mrs;
 variant_decls_map_t globals::variant_decls;
 variant_instrs_map_t globals::variant_instrs;
@@ -70,11 +92,17 @@ main(int argc, char const **argv)
     globals::output_file = TestOutput;
     globals::debug_level = DebugLevel;
 
+    globals::compile_script_location = CompileScriptPath;
+    globals::cmake_file_path = CMakeFilePath;
+    globals::interestingness_test_path = InterestTest;
+
+    globals::monotonic_reduction = MonotonicReduction;
+
     assert(op.getSourcePathList().size() == 1);
     std::string input_file = op.getSourcePathList().front();
 
     /* Sanity check */
-    interestingExecutor int_exec(input_file, globals::interestingness_test_path);
+    interestingExecutor int_exec(input_file);
     if (int_exec.runInterestingnessTest())
     {
         std::cout << "Sanity check return exit code " << int_exec.getReturnCode() << std::endl;

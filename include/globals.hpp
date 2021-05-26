@@ -196,10 +196,14 @@ const char delimiter = '_';
 extern std::string output_file;
 extern std::string test_error_message;
 extern std::string interestingness_test_path;
+extern std::string compile_script_location;
+extern std::string cmake_file_path;
 extern int expected_return_code;
 extern size_t debug_level;
 extern size_t reductions_count;
 extern bool reduction_success;
+extern bool monotonic_reduction;
+extern REDUCTION_TYPE reduction_type_progress;
 
 extern instantiated_mrs_map_t instantiated_mrs;
 extern variant_decls_map_t variant_decls;
@@ -210,6 +214,7 @@ extern fuzzing_regions_map_t fuzzing_regions;
 extern std::set<mrInfo*> mr_names_list;
 extern std::map<std::string, reduce_fn_data*> reduce_fn_list;
 extern std::set<std::string> reduce_fn_param_types;
+extern std::set<const clang::FunctionDecl*> checked_non_mrs;
 
 } // namespace globals
 

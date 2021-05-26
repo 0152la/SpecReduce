@@ -20,6 +20,10 @@ parser.add_argument("--run-timeout", type=int, default=120,
 parser.add_argument("--logging", type=str, choices=['none', 'debug', 'info'],
     default='info',
     help = "Level of data to be logged.")
+parser.add_argument("--compile-script-path", type=str,
+    help = "Path to compilation script.")
+parser.add_argument("--cmake-path", type=str,
+    help = "Path to cmake script for compilation script.")
 
 ###############################################################################
 # Helper functions
@@ -70,8 +74,8 @@ elif args.logging == 'info':
     log_console.setLevel(logging.INFO)
 
 input_path = make_abs_path(args.input, log_console, True)
-compile_script = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_ast/scripts/compile.sh"
-cmake_script = "/home/sentenced/Documents/Internships/2018_ETH/work/spec_ast/input/spec_repo/SMT_QF_NIA/z3/runtime"
+compile_script = make_abs_path(args.compile_script_path, log_console, True)
+cmake_script = make_abs_path(args.cmake_path, log_console, True)
 
 compile_cmd = f"{compile_script} {input_path} {cmake_script}"
 compile_result = exec_cmd("compile", compile_cmd)
