@@ -5,3 +5,4 @@ Session.vim
 compile_commands.json
 
 *.swp
+exec.sh
