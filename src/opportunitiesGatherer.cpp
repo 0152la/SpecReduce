@@ -117,6 +117,8 @@ mainTraverser::VisitVarDecl(clang::VarDecl* vd)
 bool
 mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
 {
+    // TODO this should be changed; we don't want to visit multiple statements
+    // where we refer to variants, just VarDecls to declare variants
     if (clang::VarDecl* vd = llvm::dyn_cast<clang::VarDecl>(dre->getDecl()))
     {
         if (checkNameIsVariant(vd->getNameAsString()))
@@ -124,16 +126,20 @@ mainTraverser::VisitDeclRefExpr(clang::DeclRefExpr* dre)
             const clang::Stmt* var_instr_stmt = this->getBaseParent(dre).get<clang::Stmt>();
             if (!globals::variant_instrs.count(var_instr_stmt))
             {
-                variant_instruction_t* var_instr =
-                    new variant_instruction_t(var_instr_stmt, vd);
-                globals::variant_instrs.emplace(var_instr_stmt, var_instr);
-                globals::variant_decls.at(vd)->instrs.push_back(var_instr_stmt);
-                if (!globals::variant_instr_index.count(this->curr_vd_index))
+                // Skip stmts with checks if `KeepChecks` is set
+                if (!globals::keep_checks)
                 {
-                    globals::variant_instr_index.emplace(
-                        this->curr_vd_index, std::vector<variant_instruction_t*>());
+                    variant_instruction_t* var_instr =
+                        new variant_instruction_t(var_instr_stmt, vd);
+                    globals::variant_instrs.emplace(var_instr_stmt, var_instr);
+                    globals::variant_decls.at(vd)->instrs.push_back(var_instr_stmt);
+                    if (!globals::variant_instr_index.count(this->curr_vd_index))
+                    {
+                        globals::variant_instr_index.emplace(
+                            this->curr_vd_index, std::vector<variant_instruction_t*>());
+                    }
+                    globals::variant_instr_index.at(this->curr_vd_index).push_back(var_instr);
                 }
-                globals::variant_instr_index.at(this->curr_vd_index).push_back(var_instr);
                 this->curr_vd_index += 1;
             }
         }
@@ -264,7 +270,7 @@ fuzzerGathererCallback::getFuzzingStmts(const clang::CallExpr* start_ce,
         }
 
         const clang::CallExpr* ce = llvm::dyn_cast<clang::CallExpr>(child_expr);
-        child_expr->dump();
+        //child_expr->dump();
         if (ce == start_ce)
         {
             in_sequence = true;

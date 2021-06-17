@@ -162,7 +162,9 @@ fuzzingInstrReducer::fuzzingInstrReducer(
     std::stringstream reduced_call;
     reduce_fn_data* red_fn = globals::reduce_fn_list.at(reduction_type_name);
     reduced_call << red_fn->fn_name << "(";
-    std::string concrete_args =
+    std::string concrete_args = "";
+    if (!red_fn->reduce_fn_arg_types.empty())
+    {
         std::accumulate(std::begin(red_fn->reduce_fn_arg_types) + 1,
         std::end(red_fn->reduce_fn_arg_types),
         std::string(fr->param_names.at(red_fn->reduce_fn_arg_types.front())),
@@ -171,6 +173,7 @@ fuzzingInstrReducer::fuzzingInstrReducer(
             std::string to_add = fr->param_names.at(arg_type);
             return acc + "," + to_add;
         });
+    }
     reduced_call << concrete_args << ")";
 
     //this->to_modify = instr->getSourceRange();

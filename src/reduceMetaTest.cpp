@@ -54,11 +54,22 @@ static llvm::cl::opt<std::string> InterestTest("interest-test",
 static llvm::cl::opt<bool> MonotonicReduction("monotonic",
     llvm::cl::desc("Whether reduction should not revisit previous attempted and exhausted type."),
     llvm::cl::init(true), llvm::cl::cat(reduceMetaTest));
+static llvm::cl::opt<bool> KeepLastVariant("no-reduce-last-var",
+    llvm::cl::desc("Whether to ensure one variant (in addition to base variant) "
+    "is kept, even if it is not necessary to expose the reduced-for bug. Useful "
+    "to ensure there is an oracle for the eventually reduced test."),
+    llvm::cl::init(true), llvm::cl::cat(reduceMetaTest));
+static llvm::cl::opt<bool> KeepChecks("no-reduce-checks",
+    llvm::cl::desc("Whether to reduce checks as part of sequence shortening. "
+    "Similar to variants, checks can be kept in order to ensure an oracle is "
+    "kept."), llvm::cl::init(true), llvm::cl::cat(reduceMetaTest));
 
 size_t globals::debug_level;
 size_t globals::reductions_count = 0;
 bool globals::reduction_success = false;
 bool globals::monotonic_reduction;
+bool globals::keep_last_variant;
+bool globals::keep_checks;
 REDUCTION_TYPE globals::reduction_type_progress;
 int globals::expected_return_code;
 
@@ -98,6 +109,8 @@ main(int argc, char const **argv)
     globals::interestingness_test_path = InterestTest;
 
     globals::monotonic_reduction = MonotonicReduction;
+    globals::keep_last_variant = KeepLastVariant;
+    globals::keep_checks = KeepChecks;
 
     assert(op.getSourcePathList().size() == 1);
     std::string input_file = op.getSourcePathList().front();

@@ -29,6 +29,14 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
                     != std::string::npos; }),
         global_reductions.variant_decls.end());
 
+    // Do not reduce final variant if `no_reduce_last_variant` is set
+    if (globals::keep_last_variant &&
+            global_reductions.variant_decls.size() == 1)
+    {
+        EMIT_DEBUG_INFO("Preventing reduction of final variant.", 3);
+        global_reductions.variant_decls.clear();
+    }
+
     // Do not reduce sequence index 0
     global_reductions.variant_instr_index.erase(
         std::remove_if(std::begin(global_reductions.variant_instr_index),
@@ -92,8 +100,8 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
 
             if (success)
             {
-                ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
-                //ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
+                //ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
+                ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
                 EMIT_DEBUG_INFO("Wrote output file " + globals::output_file, 2);
                 globals::reduction_success = true;
                 globals::reduction_type_progress = this->rd_type;

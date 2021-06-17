@@ -204,6 +204,8 @@ extern size_t debug_level;
 extern size_t reductions_count;
 extern bool reduction_success;
 extern bool monotonic_reduction;
+extern bool keep_last_variant;
+extern bool keep_checks;
 extern REDUCTION_TYPE reduction_type_progress;
 
 extern instantiated_mrs_map_t instantiated_mrs;
