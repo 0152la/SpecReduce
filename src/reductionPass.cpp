@@ -158,9 +158,20 @@ fuzzingInstrReducer::fuzzingInstrReducer(
         }
     }
     assert(!reduction_type_name.empty());
+    EMIT_DEBUG_INFO("Reducing object type " + reduction_type_name, 4);
 
     std::stringstream reduced_call;
-    reduce_fn_data* red_fn = globals::reduce_fn_list.at(reduction_type_name);
+    reduce_fn_data* red_fn;
+    try
+    {
+        red_fn = globals::reduce_fn_list.at(reduction_type_name);
+    }
+    catch (const std::out_of_range& oor)
+    {
+        EMIT_DEBUG_INFO("Could not find fuzzing reduction method for object type " + reduction_type_name, 1);
+        EMIT_DEBUG_INFO(oor.what(), 1);
+        return;
+    }
     reduced_call << red_fn->fn_name << "(";
     std::string concrete_args = "";
     if (!red_fn->reduce_fn_arg_types.empty())
