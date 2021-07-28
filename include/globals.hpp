@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "logging.hpp"
 #include "fuzzingReduction.hpp"
 
 struct mrInfo;

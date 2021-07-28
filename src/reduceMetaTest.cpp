@@ -1,7 +1,9 @@
 #include <chrono>
+#include <ctime>
 #include <set>
 #include <map>
 #include <iostream>
+#include <iomanip>
 #include <vector>
 #include <thread>
 #include <tuple>
@@ -63,7 +65,11 @@ static llvm::cl::opt<bool> KeepChecks("no-reduce-checks",
     llvm::cl::desc("Whether to reduce checks as part of sequence shortening. "
     "Similar to variants, checks can be kept in order to ensure an oracle is "
     "kept."), llvm::cl::init(true), llvm::cl::cat(reduceMetaTest));
+static llvm::cl::opt<bool> EnableLogging("enable-logging",
+    llvm::cl::desc("Whether to enable internal logging"),
+    llvm::cl::init(false), llvm::cl::cat(reduceMetaTest));
 
+// Globals definitions
 size_t globals::debug_level;
 size_t globals::reductions_count = 0;
 bool globals::reduction_success = false;
@@ -72,6 +78,17 @@ bool globals::keep_last_variant;
 bool globals::keep_checks;
 REDUCTION_TYPE globals::reduction_type_progress;
 int globals::expected_return_code;
+
+// Logging definitions
+bool logging::enable_log;
+long logging::initial_file_size;
+long logging::final_file_size;
+size_t logging::reductions_attempted = 0;
+size_t logging::reductions_applied = 0;
+std::time_t logging::time_start;
+std::time_t logging::time_end;
+//std::chrono::time_point<std::chrono::steady_clock> logging::time_start;
+//std::chrono::time_point<std::chrono::steady_clock> logging::time_end;
 
 // File paths
 std::string globals::output_file;
@@ -103,6 +120,7 @@ main(int argc, char const **argv)
 
     globals::output_file = TestOutput;
     globals::debug_level = DebugLevel;
+    logging::enable_log = EnableLogging;
 
     globals::compile_script_location = CompileScriptPath;
     globals::cmake_file_path = CMakeFilePath;
@@ -114,6 +132,9 @@ main(int argc, char const **argv)
 
     assert(op.getSourcePathList().size() == 1);
     std::string input_file = op.getSourcePathList().front();
+
+    logging::initial_file_size = logging::getFileSize(input_file);
+    logging::time_start = std::time(nullptr);
 
     /* Sanity check */
     interestingExecutor int_exec(input_file);
@@ -137,9 +158,8 @@ main(int argc, char const **argv)
         reduceTool.run(clang::tooling::newFrontendActionFactory
                     <reductionEngineAction>().get());
         input_file = globals::output_file;
-        globals::reductions_count += 1;
     }
-    while (globals::reduction_success); // && globals::reductions_count < 3);
+    while (globals::reduction_success);
 
     for (const mrInfo* mri : globals::mr_names_list)
     {
@@ -150,5 +170,44 @@ main(int argc, char const **argv)
         delete(rd_fn_pair.second);
     }
 
-    EMIT_DEBUG_INFO("Final reduced program written to " + globals::output_file, 1);
+    if (globals::reductions_count == 0)
+    {
+        EMIT_DEBUG_INFO("No reduction opportunity was applicable.", 1);
+    }
+    else
+    {
+        EMIT_DEBUG_INFO("Final reduced program written to " + globals::output_file, 1);
+
+        logging::reductions_applied = globals::reductions_count;
+        logging::final_file_size = logging::getFileSize(globals::output_file);
+    }
+
+    logging::time_end = std::time(nullptr);
+
+    if (logging::enable_log)
+    {
+        std::stringstream emit_log;
+        emit_log << "STATISTICS ===" << std::endl;
+        emit_log << "- initial file size --- " << logging::initial_file_size << std::endl;
+        emit_log << "- final file size --- " << logging::final_file_size << std::endl;
+        emit_log << "- reduction attempts --- " << logging::reductions_attempted << std::endl;
+        emit_log << "- reductions applied --- " << logging::reductions_applied << std::endl;
+
+        emit_log << "- time start  --- " << std::put_time(std::localtime(&logging::time_start), "%F %T") << std::endl;
+        emit_log << "- time end --- " << std::put_time(std::localtime(&logging::time_end), "%F %T") << std::endl;
+        emit_log << "- duration --- " << std::difftime(logging::time_end, logging::time_start) << " seconds" << std::endl;
+
+        //emit_log << "- time start  --- " <<
+            //std::put_time(std::localtime(
+            //std::chrono::steady_clock::to_time_t(logging::time_start)), "%F %T")
+            //<< std::endl;
+        //emit_log << "- time end--- " <<
+            //std::put_time(std::localtime(
+            //std::chrono::steady_clock::to_time_t(logging::time_end)), "%F %T")
+            //<< std::endl;
+        //emit_log << "- duration --- " <<
+            //std::chrono::seconds(logging::time_end - logging::time_start).count() << std::endl;
+        emit_log << "=== END" << std::endl;
+        std::cout << emit_log.str();
+    }
 }

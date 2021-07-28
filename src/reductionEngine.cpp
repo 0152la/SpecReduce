@@ -104,6 +104,7 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
                 ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
                 EMIT_DEBUG_INFO("Wrote output file " + globals::output_file, 2);
                 globals::reduction_success = true;
+                globals::reductions_count += 1;
                 globals::reduction_type_progress = this->rd_type;
                 this->cleanup();
                 return;
@@ -130,6 +131,7 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
             }
         }
         reduction_attempt += 1;
+        logging::reductions_attempted += 1;
     }
 }
 
