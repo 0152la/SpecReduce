@@ -40,6 +40,7 @@ def exec_cmd(name, cmd, timeout=None, log_test=False):
     try:
         out, err = cmd_proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        log_console.debug("Timeout")
         cmd_proc.kill()
         out, err = cmd_proc.communicate()
     log_console.debug(f"Return code: {cmd_proc.returncode}")

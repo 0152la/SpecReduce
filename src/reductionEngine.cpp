@@ -100,8 +100,8 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
 
             if (success)
             {
-                //ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
-                ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
+                ERROR_CHECK(llvm::sys::fs::rename(tmp_path, globals::output_file));
+                //ERROR_CHECK(llvm::sys::fs::copy_file(tmp_path, globals::output_file));
                 EMIT_DEBUG_INFO("Wrote output file " + globals::output_file, 2);
                 globals::reduction_success = true;
                 globals::reductions_count += 1;

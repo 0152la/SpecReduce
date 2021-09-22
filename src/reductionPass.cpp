@@ -176,14 +176,17 @@ fuzzingInstrReducer::fuzzingInstrReducer(
     std::string concrete_args = "";
     if (!red_fn->reduce_fn_arg_types.empty())
     {
-        std::accumulate(std::begin(red_fn->reduce_fn_arg_types) + 1,
-        std::end(red_fn->reduce_fn_arg_types),
-        std::string(fr->param_names.at(red_fn->reduce_fn_arg_types.front())),
-        [&fr](std::string acc, std::string arg_type)
-        {
-            std::string to_add = fr->param_names.at(arg_type);
-            return acc + "," + to_add;
-        });
+        concrete_args =
+            std::accumulate(
+                std::begin(red_fn->reduce_fn_arg_types) + 1,
+                std::end(red_fn->reduce_fn_arg_types),
+                std::string(fr->param_names.at(
+                    red_fn->reduce_fn_arg_types.front())),
+                [&fr](std::string acc, std::string arg_type)
+                {
+                    std::string to_add = fr->param_names.at(arg_type);
+                    return acc + "," + to_add;
+                });
     }
     reduced_call << concrete_args << ")";
 

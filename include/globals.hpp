@@ -200,13 +200,18 @@ extern std::string test_error_message;
 extern std::string interestingness_test_path;
 extern std::string compile_script_location;
 extern std::string cmake_file_path;
-extern int expected_return_code;
+
+// Reduction parameters
 extern size_t debug_level;
+extern bool keep_last_variant;
+extern bool keep_checks;
+extern std::set<size_t> observed_return_codes;
+
+// Individual reduction attempt properties
+extern int expected_return_code;
 extern size_t reductions_count;
 extern bool reduction_success;
 extern bool monotonic_reduction;
-extern bool keep_last_variant;
-extern bool keep_checks;
 extern REDUCTION_TYPE reduction_type_progress;
 
 extern instantiated_mrs_map_t instantiated_mrs;

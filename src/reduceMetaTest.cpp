@@ -82,6 +82,7 @@ bool globals::keep_last_variant;
 bool globals::keep_checks;
 REDUCTION_TYPE globals::reduction_type_progress;
 int globals::expected_return_code;
+std::set<size_t> globals::observed_return_codes;
 
 // Logging definitions
 bool logging::enable_log;
@@ -197,10 +198,22 @@ main(int argc, char const **argv)
         emit_log << "- final file size --- " << logging::final_file_size << std::endl;
         emit_log << "- reduction attempts --- " << logging::reductions_attempted << std::endl;
         emit_log << "- reductions applied --- " << logging::reductions_applied << std::endl;
+        emit_log << "- return code expected --- " << globals::expected_return_code << std::endl;
+
+        std::string return_codes_str;
+        std::accumulate(std::begin(globals::observed_return_codes),
+                        std::end(globals::observed_return_codes),
+                        std::string(globals::observed_return_codes.front()),
+                        [&return_codes_str](std::string acc, std::string new_rc)
+                        {
+                            return acc + "," + new_rc;
+                        });
+        emit_log << "- return codes seen --- " << return_codes_str << std::endl;
 
         emit_log << "- time start  --- " << std::put_time(std::localtime(&logging::time_start), "%F %T") << std::endl;
         emit_log << "- time end --- " << std::put_time(std::localtime(&logging::time_end), "%F %T") << std::endl;
         emit_log << "- duration --- " << std::difftime(logging::time_end, logging::time_start) << " seconds" << std::endl;
+
 
         //emit_log << "- time start  --- " <<
             //std::put_time(std::localtime(
