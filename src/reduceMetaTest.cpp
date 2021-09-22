@@ -1,9 +1,10 @@
 #include <chrono>
 #include <ctime>
-#include <set>
-#include <map>
+#include <fstream>
 #include <iostream>
 #include <iomanip>
+#include <map>
+#include <set>
 #include <vector>
 #include <thread>
 #include <tuple>
@@ -68,6 +69,9 @@ static llvm::cl::opt<bool> KeepChecks("no-reduce-checks",
 static llvm::cl::opt<bool> EnableLogging("enable-logging",
     llvm::cl::desc("Whether to enable internal logging"),
     llvm::cl::init(false), llvm::cl::cat(reduceMetaTest));
+static llvm::cl::opt<std::string> LogOutput("log-output",
+    llvm::cl::desc("If set, path to file where to emit logging data"),
+    llvm::cl::init(""), llvm::cl::cat(reduceMetaTest));
 
 // Globals definitions
 size_t globals::debug_level;
@@ -137,6 +141,7 @@ main(int argc, char const **argv)
     logging::time_start = std::time(nullptr);
 
     /* Sanity check */
+    EMIT_DEBUG_INFO("Running sanity check", 1);
     interestingExecutor int_exec(input_file);
     if (int_exec.runInterestingnessTest())
     {
@@ -208,6 +213,17 @@ main(int argc, char const **argv)
         //emit_log << "- duration --- " <<
             //std::chrono::seconds(logging::time_end - logging::time_start).count() << std::endl;
         emit_log << "=== END" << std::endl;
-        std::cout << emit_log.str();
+        if (!LogOutput.empty())
+        {
+            EMIT_DEBUG_INFO("Writing log data to " + LogOutput, 1);
+            std::ofstream log_out;
+            log_out.open(LogOutput, std::ios_base::out);
+            log_out << emit_log.str();
+            log_out.close();
+        }
+        else
+        {
+            std::cout << emit_log.str();
+        }
     }
 }
