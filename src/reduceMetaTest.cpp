@@ -146,7 +146,8 @@ main(int argc, char const **argv)
     interestingExecutor int_exec(input_file);
     if (int_exec.runInterestingnessTest())
     {
-        std::cout << "Sanity check return exit code " << int_exec.getReturnCode() << std::endl;
+        std::cout << "Sanity check return exit code ";
+        std::cout << int_exec.getReturnCode() << std::endl;
         return 1;
     }
     globals::expected_return_code = int_exec.getReturnCode();
@@ -201,13 +202,18 @@ main(int argc, char const **argv)
         emit_log << "- return code expected --- " << globals::expected_return_code << std::endl;
 
         std::string return_codes_str;
-        std::accumulate(std::begin(globals::observed_return_codes),
-                        std::end(globals::observed_return_codes),
-                        std::string(globals::observed_return_codes.front()),
-                        [&return_codes_str](std::string acc, std::string new_rc)
-                        {
-                            return acc + "," + new_rc;
-                        });
+        auto orc_it = globals::observed_return_codes.begin();
+        auto orc_end = globals::observed_return_codes.end();
+        std::string delim = ", ";
+        while (orc_it != orc_end)
+        {
+            return_codes_str += std::to_string(*orc_it);
+            orc_it = std::next(orc_it);
+            if (orc_it != orc_end)
+            {
+                return_codes_str += delim;
+            }
+        }
         emit_log << "- return codes seen --- " << return_codes_str << std::endl;
 
         emit_log << "- time start  --- " << std::put_time(std::localtime(&logging::time_start), "%F %T") << std::endl;
