@@ -14,7 +14,7 @@
 
 struct mrInfo;
 
-enum REDUCTION_TYPE
+enum REDUCTION_TYPE : size_t
 {
     VARIANT_ELIMINATION,
     FAMILY_SHORTENING,

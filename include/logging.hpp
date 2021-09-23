@@ -4,13 +4,18 @@
 #include <chrono>
 #include <fstream>
 #include <ios>
+#include <map>
+
+enum REDUCTION_TYPE : size_t;
 
 namespace logging
 {
 
 extern bool enable_log;
-extern size_t reductions_attempted;
-extern size_t reductions_applied;
+//extern size_t reductions_attempted;
+//extern size_t reductions_applied;
+extern std::map<REDUCTION_TYPE, size_t> reductions_attempted;
+extern std::map<REDUCTION_TYPE, size_t> reductions_applied;
 extern long initial_file_size;
 extern long final_file_size;
 extern std::time_t time_start;

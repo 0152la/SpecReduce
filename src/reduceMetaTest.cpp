@@ -88,8 +88,8 @@ std::set<size_t> globals::observed_return_codes;
 bool logging::enable_log;
 long logging::initial_file_size;
 long logging::final_file_size;
-size_t logging::reductions_attempted = 0;
-size_t logging::reductions_applied = 0;
+std::map<REDUCTION_TYPE, size_t> logging::reductions_attempted;
+std::map<REDUCTION_TYPE, size_t> logging::reductions_applied;
 std::time_t logging::time_start;
 std::time_t logging::time_end;
 //std::chrono::time_point<std::chrono::steady_clock> logging::time_start;
@@ -185,7 +185,6 @@ main(int argc, char const **argv)
     {
         EMIT_DEBUG_INFO("Final reduced program written to " + globals::output_file, 1);
 
-        logging::reductions_applied = globals::reductions_count;
         logging::final_file_size = logging::getFileSize(globals::output_file);
     }
 
@@ -197,8 +196,22 @@ main(int argc, char const **argv)
         emit_log << "STATISTICS ===" << std::endl;
         emit_log << "- initial file size --- " << logging::initial_file_size << std::endl;
         emit_log << "- final file size --- " << logging::final_file_size << std::endl;
-        emit_log << "- reduction attempts --- " << logging::reductions_attempted << std::endl;
-        emit_log << "- reductions applied --- " << logging::reductions_applied << std::endl;
+
+        emit_log << "- reduction attempts --- " << std::endl;
+        std::initializer_list<REDUCTION_TYPE> red_tps =
+            { VARIANT_ELIMINATION, FAMILY_SHORTENING, RECURSION_REMOVAL,
+                FUZZING_REDUCTION };
+        for (REDUCTION_TYPE rt : red_tps)
+        {
+            emit_log << "\t" << reduction_type_names.at(rt) << " --- ";
+            emit_log << logging::reductions_attempted.at(rt) << std::endl;
+        }
+        emit_log << "- reductions applied --- " << std::endl;
+        for (REDUCTION_TYPE rt : red_tps)
+        {
+            emit_log << "\t" << reduction_type_names.at(rt) << " --- ";
+            emit_log << logging::reductions_applied.at(rt) << std::endl;
+        }
         emit_log << "- return code expected --- " << globals::expected_return_code << std::endl;
 
         std::string return_codes_str;

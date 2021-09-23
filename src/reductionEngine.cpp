@@ -97,6 +97,7 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
             success = int_exec.runInterestingnessTest(globals::expected_return_code);
             EMIT_DEBUG_INFO("Retrieved return code " +
                 std::to_string(int_exec.getReturnCode()), 2);
+            globals::observed_return_codes.insert(int_exec.getReturnCode());
 
             if (success)
             {
@@ -106,6 +107,7 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
                 globals::reduction_success = true;
                 globals::reductions_count += 1;
                 globals::reduction_type_progress = this->rd_type;
+                logging::reductions_applied.at(this->rd_type) += 1;
                 this->cleanup();
                 return;
             }
@@ -131,7 +133,7 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
             }
         }
         reduction_attempt += 1;
-        logging::reductions_attempted += 1;
+        logging::reductions_attempted.at(this->rd_type) += 1;
     }
 }
 
