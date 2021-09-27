@@ -135,6 +135,12 @@ main(int argc, char const **argv)
     globals::keep_last_variant = KeepLastVariant;
     globals::keep_checks = KeepChecks;
 
+    for (std::pair<REDUCTION_TYPE, std::string> typ_pair : reduction_type_names)
+    {
+        logging::reductions_attempted.insert({typ_pair.first, 0});
+        logging::reductions_applied.insert({typ_pair.first, 0});
+    }
+
     assert(op.getSourcePathList().size() == 1);
     std::string input_file = op.getSourcePathList().front();
 
@@ -197,21 +203,19 @@ main(int argc, char const **argv)
         emit_log << "- initial file size --- " << logging::initial_file_size << std::endl;
         emit_log << "- final file size --- " << logging::final_file_size << std::endl;
 
-        emit_log << "- reduction attempts --- " << std::endl;
-        std::initializer_list<REDUCTION_TYPE> red_tps =
-            { VARIANT_ELIMINATION, FAMILY_SHORTENING, RECURSION_REMOVAL,
-                FUZZING_REDUCTION };
-        for (REDUCTION_TYPE rt : red_tps)
+
+        std::stringstream red_attempt_str, red_apply_str;
+        size_t red_attempt_cnt = 0, red_apply_cnt = 0;
+        for (std::pair<REDUCTION_TYPE, std::string> typ_pair : reduction_type_names)
         {
-            emit_log << "\t" << reduction_type_names.at(rt) << " --- ";
-            emit_log << logging::reductions_attempted.at(rt) << std::endl;
+            std::string red_typ = "\t" + typ_pair.second + " == ";
+            red_attempt_str << red_typ << logging::reductions_attempted.at(typ_pair.first) << std::endl;
+            red_attempt_cnt += logging::reductions_attempted.at(typ_pair.first);
+            red_apply_str << red_typ << logging::reductions_applied.at(typ_pair.first) << std::endl;
+            red_apply_cnt += logging::reductions_applied.at(typ_pair.first);
         }
-        emit_log << "- reductions applied --- " << std::endl;
-        for (REDUCTION_TYPE rt : red_tps)
-        {
-            emit_log << "\t" << reduction_type_names.at(rt) << " --- ";
-            emit_log << logging::reductions_applied.at(rt) << std::endl;
-        }
+        emit_log << "- reduction attempts --- " << red_attempt_cnt << "\n" << red_attempt_str.str();
+        emit_log << "- reductions applied --- " << red_apply_cnt << "\n" << red_apply_str.str();
         emit_log << "- return code expected --- " << globals::expected_return_code << std::endl;
 
         std::string return_codes_str;

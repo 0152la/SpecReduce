@@ -116,6 +116,10 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
                 ERROR_CHECK(llvm::sys::fs::remove(tmp_path));
             }
         }
+
+        reduction_attempt += 1;
+        logging::reductions_attempted.at(this->rd_type) += 1;
+
         if (this->offset >= global_reductions.getReductionsSizeByType(this->rd_type)
                 || this->chunk_size == 0)
         {
@@ -132,8 +136,6 @@ reductionEngine::HandleTranslationUnit(clang::ASTContext& ctx)
                 this->offset = 0;
             }
         }
-        reduction_attempt += 1;
-        logging::reductions_attempted.at(this->rd_type) += 1;
     }
 }
 
