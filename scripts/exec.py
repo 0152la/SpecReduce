@@ -6,6 +6,8 @@ import shlex
 import subprocess
 import yaml
 
+from pathlib import Path
+
 ###############################################################################
 # Argument parsing
 ###############################################################################
@@ -27,7 +29,16 @@ parser.add_argument("--output", type=str,
 ###############################################################################
 
 args = parser.parse_args()
-sep = os.path.sep
+
+if not Path(args.mfreduce_bin).is_file:
+    print(f"Could not find MF++R binary at path {args.mfreduce_bin}")
+    exit(1)
+if not Path(args.input_path).is_file:
+    print(f"Could not find input test file at path {args.input_path}")
+    exit(1)
+if not Path(args.config_file_path).is_file:
+    print(f"Could not find config.yaml at path {args.config_file_path}")
+    exit(1)
 
 if args.interest_script is None:
     interest_path = os.path.join(os.path.dirname(args.mfreduce_bin), "..", "scripts", "interestingness.py")
