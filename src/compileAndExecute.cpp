@@ -3,8 +3,7 @@
 void
 testExecutor::compileTestCase()
 {
-    const std::string compile_script_location =
-        "/home/sentenced/Documents/Internships/2018_ETH/work/spec_ast/scripts/compile.sh";
+    const std::string compile_script_location = ""; // TODO
     std::stringstream sstream;
     struct stat buffer;
     assert(!stat(compile_script_location.c_str(), &buffer));
