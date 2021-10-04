@@ -58,7 +58,7 @@ compile_script = config["compile_script_path"]
 cmd = f"{args.mfreduce_bin} --output {output_path} --debug 2 "\
       f"--p {compile_commands_path} --interest-test {interest_path} "\
       f"--cmake-path {cmake_path} --compile-script {compile_script} {log_out} "\
-      f"{args.input_path}"
+      f"--enable-logging {args.input_path}"
 
 print("Executing cmd " + cmd)
 reduce_proc = subprocess.Popen(shlex.split(cmd), encoding="utf-8")
